@@ -1,0 +1,6 @@
+.git
+.idea
+__pycache__
+*.pyc
+server/storage/*
+client/sync_folder/*
