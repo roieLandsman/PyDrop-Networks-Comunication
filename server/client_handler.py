@@ -3,6 +3,7 @@
 import threading
 from server.constants import ERROR_UNKNOWN_ACTION, ERROR_BAD_REQUEST
 from server.protocol import read_message, send_message, error
+from server.log import log
 from server.file_utils import (
     load_metadata,
     clean_filename,
@@ -13,11 +14,6 @@ from server.file_utils import (
     save_metadata,
 )
 from server.api import get_handler
-
-
-def log(message):
-    """Print one server handler log line immediately."""
-    print(f"[server] {message}", flush=True)
 
 
 class ServerState:
@@ -140,44 +136,42 @@ class ServerState:
 
 def handle_client(sock, address, state):
     """Serve one connected client until it disconnects."""
-    log(f"client connected: {address}")
+    log.action(f"client connected from {address[0]}")
     with sock:
         while True:
             try:
-                message = read_message(sock)
-                if message is None:
+                request, payload = read_message(sock)
+                if request is None:
                     break
-                log_request(message, address)
-                header, payload = dispatch_message(message, state)
+                log_request(request, address)
+                header, payload = dispatch_message(request, payload, state)
                 send_message(sock, header, payload)
-                log_response(header, payload, address)
+                log_response(request, header, address)
             except ValueError as error:
-                log(f"bad request from {address}: {error}")
-                send_bad_request(sock, str(error))
+                log.action(f"bad request from {address[0]}: {error}")
+                send_bad_request(sock, str(error), address)
             except OSError as error:
-                log(f"socket issue for {address}: {error}")
+                log.action(f"socket issue for {address[0]}: {error}")
                 break
-    log(f"client disconnected: {address}")
+    log.action(f"client disconnected from {address[0]}")
 
 
-def log_request(message, address):
+def log_request(request, address):
     """Log an incoming client request."""
-    request, payload = message
     action = request.get("action", "UNKNOWN")
-    filename = request.get("filename", "")
-    log(f"{address} -> {action} {filename} payload={len(payload)}")
+    client_id = request.get("client_id", "unknown")
+    log.received(action, client_id, address[0])
 
 
-def log_response(header, payload, address):
+def log_response(request, header, address):
     """Log one server response sent to a client."""
-    action = header.get("action", "UNKNOWN")
-    message = header.get("message", "")
-    log(f"{address} <- {action} {message} payload={len(payload)}")
+    action = request.get("action", header.get("action", "UNKNOWN"))
+    client_id = request.get("client_id", "unknown")
+    log.sent(action, client_id, address[0])
 
 
-def dispatch_message(message, state):
+def dispatch_message(request, payload, state):
     """Dispatch a decoded message to the matching request handler."""
-    request, payload = message
     handler = get_handler(request.get("action"))
     if handler is None:
         return error(ERROR_UNKNOWN_ACTION, "unknown action"), b""
@@ -192,9 +186,10 @@ def normalize_response(response):
     return response, b""
 
 
-def send_bad_request(sock, message):
+def send_bad_request(sock, message, address):
     """Send a BAD_REQUEST response if the socket is still writable."""
     try:
         send_message(sock, error(ERROR_BAD_REQUEST, message))
+        log.sent("BAD_REQUEST", "unknown", address[0])
     except OSError:
         pass

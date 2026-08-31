@@ -27,7 +27,7 @@ def read_message(sock):
     """Read one framed PyDrop message from a socket."""
     header_size_bytes = recv_exact(sock, HEADER_LENGTH_BYTES)
     if header_size_bytes is None:
-        return None
+        return None, None
     header_size = struct.unpack(">I", header_size_bytes)[0]
     if header_size > MAX_HEADER_BYTES:
         raise ValueError("JSON header is too large")
