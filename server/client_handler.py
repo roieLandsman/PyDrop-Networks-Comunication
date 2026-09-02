@@ -16,7 +16,7 @@ class Server:
         self.lock = threading.RLock()
         self.metadata: dict = {"files": dict(), "deleted": dict(), "clients": list()}
         self.init_metadata()
-    
+            
     def init_metadata(self) -> None:
         with self.lock:
             if not METADATA_FILE.exists():
@@ -35,6 +35,7 @@ class Server:
             json.dump(self.metadata, f, indent=2, sort_keys=True)  
 
     def add_new_client(self, client_id: str) -> None:
+        """Remember one connected client id."""
         with self.lock:
             self.update_metadata()
             if client_id not in self.metadata["clients"]:
@@ -61,8 +62,10 @@ class Server:
         client_id = request.get("client_id")
         mtime = request.get("mtime")
         with self.lock:
-            path = write_file(filename, payload)
+            file_exists = filename in self.metadata["files"]
             previous = self.get_previous_record(filename)
+            self.validate_write_version(request, previous, file_exists)
+            path = write_file(filename, payload)
             version = int(previous.get("version", 0)) + 1
             file_metadata = build_file_metadata(filename, path, version, client_id, mtime)
             
@@ -73,6 +76,18 @@ class Server:
             self.metadata["deleted"].pop(filename, None)
             self.save_metadata()
             return file_metadata
+
+    def validate_write_version(self, request: dict, previous: dict, file_exists: bool) -> None:
+        """Reject writes based on an older server file version."""
+        if request.get("action") == "UPLOAD":
+            if file_exists:
+                raise PermissionError("server already has a newer copy")
+            return
+        if not previous:
+            return
+        client_version = int(request.get("version", 0))
+        if client_version < int(previous.get("version", 0)):
+            raise PermissionError("server already has a newer copy")
 
     def read_file(self, filename: str) -> dict:
         """Read a stored file payload and metadata."""

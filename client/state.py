@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from client.file_utils import delete_file, write_file
+from client.file_utils import delete_file, rename_to_local, write_file
 from client.folder_scanner import diff_snapshots, scan_folder
 
 
@@ -31,6 +31,16 @@ class ClientState:
         """Return current local metadata for one tracked file."""
         return scan_folder(self.folder).get(filename)
 
+    def has_local_edit(self, filename: str) -> bool:
+        """Return True when a local file differs from tracked state."""
+        metadata = self.current_metadata(filename)
+        known_metadata = self.snapshot.get(filename)
+        if metadata is None:
+            return False
+        if known_metadata is None:
+            return True
+        return metadata.get("hash") != known_metadata.get("hash")
+
     def remember_synced_file(
         self, filename: str, metadata: dict, version: int
     ) -> None:
@@ -54,6 +64,12 @@ class ClientState:
     def apply_delete(self, filename: str) -> None:
         """Delete a remote tombstone locally and update local state."""
         delete_file(filename, self.folder)
+        self.snapshot = scan_folder(self.folder)
+        self.server_versions.pop(filename, None)
+
+    def preserve_local_copy(self, filename: str) -> None:
+        """Move one local file to an ignored .local backup."""
+        rename_to_local(filename, self.folder)
         self.snapshot = scan_folder(self.folder)
         self.server_versions.pop(filename, None)
 

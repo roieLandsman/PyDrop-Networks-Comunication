@@ -42,18 +42,18 @@ def validate_file_message(request: dict, payload: bytes) -> dict | None:
     
     return validate_filename(request.get('filename', None))
     
+    
+def validate_empty_payload(payload: bytes, request_name: str) -> dict | None:
+    """Validate that a request did not send a payload."""
+    if payload:
+        return error(ERROR_BAD_REQUEST, f"{request_name} must not include a payload")
+    return None
+    
 
 def validate_client_id(request: dict) -> dict | None:
     """Validate that the request has a client id."""
     if not request.get("client_id"):
         return error(ERROR_BAD_REQUEST, "client_id is required")
-    return None
-
-
-def validate_empty_payload(payload: bytes, request_name: str) -> dict | None:
-    """Validate that a request did not send a payload."""
-    if payload:
-        return error(ERROR_BAD_REQUEST, f"{request_name} must not include a payload")
     return None
 
 

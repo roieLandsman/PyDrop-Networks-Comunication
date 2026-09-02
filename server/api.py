@@ -21,6 +21,9 @@ def handle_connect(server, request: dict, payload: bytes = b"") -> dict:
     validation_error = validate_client_id(request)
     if validation_error:
         return validation_error
+    validation_error = validate_empty_payload(payload, "CONNECT")
+    if validation_error:
+        return validation_error
     server.add_new_client(client_id)
     return ack("Client connected", client_id=client_id)
 
@@ -38,7 +41,11 @@ def handle_upload(server, request: dict, payload: bytes = b"") -> dict:
     validation_error = validate_file_message(request, payload)
     if validation_error:
         return validation_error
-    return ack("Upload accepted", metadata=server.save_file(request, payload))
+    try:
+        metadata = server.save_file(request, payload)
+    except PermissionError as exception:
+        return error(ERROR_STALE_VERSION, str(exception))
+    return ack("Upload accepted", metadata=metadata)
 
 
 def handle_update(server, request: dict, payload: bytes = b"") -> dict:
@@ -46,7 +53,11 @@ def handle_update(server, request: dict, payload: bytes = b"") -> dict:
     validation_error = validate_file_message(request, payload)
     if validation_error:
         return validation_error
-    return ack("Update accepted", metadata=server.save_file(request, payload))
+    try:
+        metadata = server.save_file(request, payload)
+    except PermissionError as exception:
+        return error(ERROR_STALE_VERSION, str(exception))
+    return ack("Update accepted", metadata=metadata)
 
 
 def handle_download(server, request: dict, payload: bytes = b"") -> dict | tuple:

@@ -98,6 +98,9 @@ Client sends a new file. The file bytes are sent as the payload.
 ### UPDATE
 
 Client sends a changed version of an existing file. The new file bytes are sent as the payload.
+Before uploading, the client checks the server snapshot for a newer unseen
+version. If one exists, it renames the local file to `${filename}.local`,
+overwriting that backup if needed, then downloads the server version.
 
 ```json
 {

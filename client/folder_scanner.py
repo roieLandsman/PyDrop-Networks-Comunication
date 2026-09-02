@@ -17,6 +17,8 @@ def scan_folder(folder: Path) -> dict:
 
 def is_safe_file(filename: str) -> bool:
     """Return True when filename is accepted by the API."""
+    if filename.endswith(".local"):
+        return False
     try:
         clean_filename(filename)
     except ValueError:

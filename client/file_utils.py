@@ -67,6 +67,14 @@ def delete_file(filename: str, folder: str | Path = SYNC_FOLDER) -> None:
         path.unlink()
 
 
+def rename_to_local(filename: str, folder: str | Path = SYNC_FOLDER) -> Path:
+    """Rename a synced file to its .local backup name."""
+    path = sync_path(filename, folder)
+    local_path = sync_path(f"{filename}.local", folder)
+    local_path.unlink(missing_ok=True)
+    return path.replace(local_path)
+
+
 def file_metadata(path: Path) -> dict:
     """Build client-side metadata for one local file."""
     stat_result = path.stat()
