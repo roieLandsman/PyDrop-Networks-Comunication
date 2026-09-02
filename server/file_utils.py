@@ -7,7 +7,6 @@ from server.constants import STORAGE_DIR, METADATA_FILE, BUFFER_SIZE
 
 
 def storage_path(filename: str) -> Path:
-    """Return the safe storage path for a file name."""
     return STORAGE_DIR / filename
 
 
@@ -33,15 +32,8 @@ def write_file(filename: str, payload: bytes) -> Path:
     return path
 
 
-def delete_file(filename: str) -> None:
-    """Delete a stored file if it exists."""
-    path = storage_path(filename)
-    if path.exists():
-        path.unlink()
-
-
 def build_file_metadata(filename: str, path: Path, version: int, origin_client: str, mtime: float) -> dict:
-    """Build a metadata dictionary for one stored file.""")
+    """Build a metadata dictionary for one stored file."""
     return {
         "filename": filename,
         "size": path.stat().st_size,

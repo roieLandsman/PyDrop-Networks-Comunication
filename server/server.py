@@ -20,7 +20,7 @@ def wait_and_accept_new_clients(sock: socket, server: Server) -> None:
     while True:
         client_socket, client_address = sock.accept()
         log.action(f"accepted connection from {client_address}")
-        args = (client_socket, client_address, state)
+        args = (client_socket, client_address, server)
         # daemon=True make sure all threads will close together with the main server process when it stops.
         # target: the function to run in the thread
         # args: the arguments to pass to the function

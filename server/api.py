@@ -5,7 +5,6 @@ The server API layer is standalone and must not import client code or shared
 runtime modules.
 """
 import json
-from server.client_handler import Server
 from server.constants import *
 from server.protocol import ack, error
 from server.validation import (
@@ -16,7 +15,7 @@ from server.validation import (
 )
 
 
-def handle_connect(server: Server, request: dict, payload: bytes = b"") -> dict:
+def handle_connect(server, request: dict, payload: bytes = b"") -> dict:
     """Handle a CONNECT request."""
     client_id = request.get("client_id")
     validation_error = validate_client_id(request)
@@ -26,9 +25,7 @@ def handle_connect(server: Server, request: dict, payload: bytes = b"") -> dict:
     return ack("Client connected", client_id=client_id)
 
 
-def handle_list_files(
-    server: Server, request: dict, payload: bytes = b""
-) -> dict | tuple:
+def handle_list_files(server, request: dict, payload: bytes = b"") -> dict | tuple:
     """Handle a LIST_FILES request."""
     validation_error = validate_client_id(request)
     if validation_error:
@@ -36,7 +33,7 @@ def handle_list_files(
     return ack_with_payload("File list returned", {"files": server.list_files()})
 
 
-def handle_upload(server: Server, request: dict, payload: bytes = b"") -> dict:
+def handle_upload(server, request: dict, payload: bytes = b"") -> dict:
     """Handle an UPLOAD request."""
     validation_error = validate_file_message(request, payload)
     if validation_error:
@@ -44,7 +41,7 @@ def handle_upload(server: Server, request: dict, payload: bytes = b"") -> dict:
     return ack("Upload accepted", metadata=server.save_file(request, payload))
 
 
-def handle_update(server: Server, request: dict, payload: bytes = b"") -> dict:
+def handle_update(server, request: dict, payload: bytes = b"") -> dict:
     """Handle an UPDATE request."""
     validation_error = validate_file_message(request, payload)
     if validation_error:
@@ -52,9 +49,7 @@ def handle_update(server: Server, request: dict, payload: bytes = b"") -> dict:
     return ack("Update accepted", metadata=server.save_file(request, payload))
 
 
-def handle_download(
-    server: Server, request: dict, payload: bytes = b""
-) -> dict | tuple:
+def handle_download(server, request: dict, payload: bytes = b"") -> dict | tuple:
     """Handle a DOWNLOAD request."""
     validation_error = validate_client_id(request)
     if validation_error:
@@ -72,7 +67,7 @@ def handle_download(
     return header, result["payload"]
 
 
-def handle_delete(server: Server, request: dict, payload: bytes = b"") -> dict:
+def handle_delete(server, request: dict, payload: bytes = b"") -> dict:
     """Handle a DELETE request."""
     validation_error = validate_client_id(request)
     if validation_error:
@@ -86,9 +81,7 @@ def handle_delete(server: Server, request: dict, payload: bytes = b"") -> dict:
     return ack("Delete accepted", metadata=result)
 
 
-def handle_check_updates(
-    server: Server, request: dict, payload: bytes = b""
-) -> dict | tuple:
+def handle_check_updates(server, request: dict, payload: bytes = b"") -> dict | tuple:
     """Handle a CHECK_UPDATES request."""
     client_id = request.get("client_id")
     validation_error = validate_client_id(request)
@@ -98,9 +91,7 @@ def handle_check_updates(
     return ack_with_payload("Snapshot returned", snapshot)
 
 
-def handle_delete_seen(
-    server: Server, request: dict, payload: bytes = b""
-) -> dict:
+def handle_delete_seen(server, request: dict, payload: bytes = b"") -> dict:
     """Handle a DELETE_SEEN request."""
     client_id = request.get("client_id")
     filenames = request.get("filenames")
@@ -111,7 +102,7 @@ def handle_delete_seen(
     if validation_error:
         return validation_error
     try:
-        server.mark_deletions_seen(client_id, filenames)
+        server.update_deletion_seen_by_client(client_id, filenames)
     except ValueError as exception:
         return error(ERROR_INVALID_FILENAME, str(exception))
     return ack("Deletions marked seen", metadata={"filenames": filenames})

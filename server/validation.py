@@ -5,7 +5,18 @@ from pathlib import Path
 from server.constants import *
 from server.file_utils import sha256_bytes
 from server.protocol import error
-    
+
+
+def validate_filename(filename) -> dict | None:
+    if not filename:
+        return error(ERROR_INVALID_FILENAME, "filename is required")
+    if not isinstance(filename, str):
+        return error(ERROR_INVALID_FILENAME, "filename must be a string")
+    if filename in (".", "..") or "/" in filename or "\\" in filename:
+        return error(ERROR_INVALID_FILENAME, "filename must be a plain relative name")
+    if Path(filename).is_absolute():
+        return error(ERROR_INVALID_FILENAME, "filename must not be absolute")
+    return None
 
 def validate_file_message(request: dict, payload: bytes) -> dict | None:
     """Validate a file transfer request."""
@@ -28,15 +39,9 @@ def validate_file_message(request: dict, payload: bytes) -> dict | None:
         return error(ERROR_BAD_REQUEST, "mtime must be provided")
     except TypeError:
         return error(ERROR_BAD_REQUEST, "mtime must be a number")
-        
-    if not isinstance(filename, str) or not filename:
-        return error(ERROR_INVALID_FILENAME, "filename is required"")
-    if filename in (".", "..") or "/" in filename or "\\" in filename:
-        return error(ERROR_INVALID_FILENAME, "filename must be a plain relative name")
-    if Path(filename).is_absolute():
-        return error(ERROR_INVALID_FILENAME, "filename must not be absolute")
-    return None
-
+    
+    return validate_filename(request.get('filename', None))
+    
 
 def validate_client_id(request: dict) -> dict | None:
     """Validate that the request has a client id."""
@@ -53,7 +58,11 @@ def validate_empty_payload(payload: bytes, request_name: str) -> dict | None:
 
 
 def validate_filenames_list(request: dict) -> dict | None:
-    """Validate that the request filenames field is a list."""
-    if not isinstance(request.get("filenames"), list):
+    filenames = request.get("filenames")
+    if not isinstance(filenames, list):
         return error(ERROR_BAD_REQUEST, "filenames must be a list")
+    for filename in filenames:
+        status = validate_filename(filename)
+        if status:
+            return status
     return None

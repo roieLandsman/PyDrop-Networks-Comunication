@@ -11,7 +11,7 @@ BUFFER_SIZE = 4096
 HEADER_LENGTH_BYTES = 4
 MAX_HEADER_BYTES = 65536
 STORAGE_DIR = Path(__file__).resolve().parent / "storage"
-METADATA_FILE = STORAGE_DIR / "metadata.json"
+METADATA_FILE = Path(__file__).resolve().parent / "metadata" / "metadata.json"
 
 ERROR_BAD_REQUEST = "BAD_REQUEST"
 ERROR_UNKNOWN_ACTION = "UNKNOWN_ACTION"
