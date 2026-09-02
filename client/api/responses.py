@@ -3,7 +3,7 @@
 import json
 
 
-def snapshot(header, payload):
+def snapshot(header: dict, payload: bytes | None) -> dict:
     """Return CHECK_UPDATES files and deletions from a response."""
     document = payload_json(header, payload) if payload else header
     return {
@@ -12,7 +12,7 @@ def snapshot(header, payload):
     }
 
 
-def payload_json(header, payload):
+def payload_json(header: dict, payload: bytes) -> dict:
     """Decode a JSON response payload."""
     if header.get("content_type") != "application/json":
         raise RuntimeError("response payload is not JSON")

@@ -5,12 +5,13 @@ shared runtime modules.
 """
 
 import json
+import socket
 import struct
 
 from client.constants import BUFFER_SIZE, HEADER_LENGTH_BYTES, MAX_HEADER_BYTES
 
 
-def recv_exact(sock, byte_count):
+def recv_exact(sock: socket.socket, byte_count: int) -> bytes | None:
     """Receive exactly byte_count bytes from a socket."""
     chunks = []
     remaining = byte_count
@@ -23,7 +24,7 @@ def recv_exact(sock, byte_count):
     return b"".join(chunks)
 
 
-def read_message(sock):
+def read_message(sock: socket.socket) -> tuple | None:
     """Read one framed PyDrop message from a socket."""
     header_size_bytes = recv_exact(sock, HEADER_LENGTH_BYTES)
     if header_size_bytes is None:
@@ -44,7 +45,7 @@ def read_message(sock):
     return header, payload
 
 
-def decode_header(header_bytes):
+def decode_header(header_bytes: bytes | None) -> dict:
     """Decode JSON header bytes into a dictionary."""
     if header_bytes is None:
         raise ValueError("Header ended before declared size")
@@ -57,7 +58,7 @@ def decode_header(header_bytes):
     return header
 
 
-def send_message(sock, header, payload=b""):
+def send_message(sock: socket.socket, header: dict, payload: bytes = b"") -> None:
     """Send one framed PyDrop message through a socket."""
     message_header = dict(header)
     message_header["size"] = len(payload)
