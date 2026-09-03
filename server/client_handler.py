@@ -3,7 +3,7 @@ import json
 import threading
 from socket import socket
 from server.log import log
-from server.api import get_api_handler
+from server.api import create_message
 from server.protocol import read_message, send_message, error
 from server.constants import METADATA_FILE, ERROR_UNKNOWN_ACTION, ERROR_BAD_REQUEST
 from server.file_utils import write_file, build_file_metadata, storage_path
@@ -147,7 +147,6 @@ class Server:
             
             self.save_metadata()
 
-        
 
     def get_previous_record(self, filename: str) -> dict:
         """Return the newest known file or tombstone record."""
@@ -175,10 +174,14 @@ def client_handler(sock: socket, address: tuple, server: Server) -> None:
                 request, payload = read_message(sock)
                 if request is None:
                     break
-                log.received(request.get("action", "UNKNOWN"), request.get("client_id", "unknown"), address[0])
-                header, payload = dispatch_message(request, payload, server)
+                action = request.get("action", "UNKNOWN")
+                client_id = request.get("client_id", "unknown")
+                
+                log.received(action, client_id, address[0])
+                header, payload = create_message(action, request, payload, server)
                 send_message(sock, header, payload)
-                log.sent(request.get("action", "UNKNOWN"), request.get("client_id", "unknown"), address[0])
+                log.sent(action, client_id, address[0])
+                
             except ValueError as error:
                 log.action(f"bad request from {address[0]}: {error}")
                 send_bad_request(sock, str(error), address)
@@ -186,24 +189,6 @@ def client_handler(sock: socket, address: tuple, server: Server) -> None:
                 log.action(f"socket issue for {address[0]}: {error}")
                 break
     log.action(f"client disconnected from {address[0]}")
-
-
-def dispatch_message(request: dict, payload: bytes, server: Server) -> tuple:
-    """Dispatch a decoded message to the matching request handler."""
-    handler = get_api_handler(request.get("action"))
-    if handler is None:
-        return error(ERROR_UNKNOWN_ACTION, "unknown action"), b""
-    else:
-        response = handler(server, request, payload)
-        return normalize_response(response)
-
-
-def normalize_response(response: dict | tuple) -> tuple:
-    """Return a response as a header and payload pair."""
-    if isinstance(response, tuple):
-        return response
-    else:
-        return response, b""
 
 
 def send_bad_request(sock: socket, message: str, address: tuple) -> None:

@@ -62,27 +62,23 @@ def send_message(sock: socket.socket, header: dict, payload: bytes = b"") -> Non
     sock.sendall(struct.pack(">I", len(header_bytes)) + header_bytes + payload)
 
 
-def ack(
-    message: str,
-    client_id: str | None = None,
-    metadata: dict | None = None,
-    content_type: str | None = None,
-) -> dict:
-    """Build an ACK and add optional fields by their argument names."""
-    response = {
-        "action": "ACK",
-        "status": "ok",
-        "message": message,
-        "size": 0,
-    }
+def ack(message: str, client_id: str  = None, metadata: dict  = None, content_type: str  = None) -> dict:
+    response = {"action": "ACK",  "status": "ok", "message": message, "size": 0}
     if client_id is not None:
         response["client_id"] = client_id
     if metadata is not None:
         response["metadata"] = metadata
     if content_type is not None:
         response["content_type"] = content_type
-    return response
+    return response, b""
 
+
+def ack_with_payload(message: str, document: dict) -> tuple:
+    """Build an ACK response with a JSON payload body."""
+    response, _ = ack(message, content_type="application/json")
+    payload = json.dumps(document, separators=(",", ":")).encode("utf-8")
+    return response, payload
+    
 
 def error(code: str, message: str) -> dict:
     """Build an ERROR response header."""
