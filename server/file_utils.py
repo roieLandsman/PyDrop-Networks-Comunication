@@ -1,7 +1,6 @@
 from hashlib import sha256
-import json
 from pathlib import Path
-from server.constants import STORAGE_DIR, METADATA_FILE, BUFFER_SIZE
+from server.constants import STORAGE_DIR, BUFFER_SIZE
 
 
 def storage_path(filename: str) -> Path:

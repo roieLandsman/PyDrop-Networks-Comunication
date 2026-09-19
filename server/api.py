@@ -4,7 +4,6 @@ Each public function represents one unique request type accepted by the server.
 The server API layer is standalone and must not import client code or shared
 runtime modules.
 """
-import json
 from server.constants import *
 from log import log
 from server.protocol import ack, ack_with_payload, error

@@ -5,7 +5,7 @@ from socket import socket
 from log import log
 from server.api import create_message
 from server.protocol import read_message, send_message, error
-from server.constants import METADATA_FILE, ERROR_UNKNOWN_ACTION, ERROR_BAD_REQUEST
+from server.constants import METADATA_FILE, ERROR_BAD_REQUEST
 from server.file_utils import write_file, build_file_metadata, storage_path
 
 
@@ -165,14 +165,6 @@ class Server:
                 self.metadata["deleted"].pop(filename)
 
             self.save_metadata()
-
-    def remove_seen_deletions_locked(self) -> None:
-        """Remove tombstones seen by every known client."""
-        clients = set(self.metadata["clients"])
-        for filename, deleted_file_data in self.metadata["deleted"].items():
-            if clients.issubset(set(deleted_file_data.get("seen_by", []))):
-                self.metadata["deleted"].pop(filename)
-
 
 def send_bad_request(sock: socket, message: str, address: tuple) -> None:
     """Send a BAD_REQUEST response if the socket is still writable."""

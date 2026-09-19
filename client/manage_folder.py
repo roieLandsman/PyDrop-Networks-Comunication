@@ -37,7 +37,6 @@ class Folder():
                   log.error(f"skipped invalid local filename {sub_path.name}: {error}")
                   continue
               self.files[sub_path.name] = file_metadata(sub_path)
-
     
     def get_diff(self, old_snapshot: dict) -> dict:
       """Return added, modified, and deleted filenames."""
@@ -67,20 +66,4 @@ class Folder():
     def export(self) -> dict:
         """Return a copy of the current file metadata."""
         return self.files.copy()
-      
-    
-    def __eq__(self, other) -> bool:
-       """Return True when two folders or folder exports track the same files."""
-       if isinstance(other, Folder):
-         return self.files == other.files
-       elif isinstance(other, dict):
-         return self.files  == other
-       else:
-         raise TypeError(f"cannot compare type Folder with type {type(other)}")
-         
-         
-         
-         
-         
-         
-         
+        

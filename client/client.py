@@ -56,12 +56,6 @@ class Client:
         self.folder.refresh()
         return self.folder.get_diff(self.snapshot)
 
-    def load_snapshot(self) -> None:
-        """Load the current folder snapshot without reporting changes."""
-        self.folder.refresh()
-        self.snapshot = self.folder.export()
-        self.save_state()
-
     def has_local_edit(self, filename: str) -> bool:
         """Return True when a local file differs from tracked state."""
         self.folder.refresh()
