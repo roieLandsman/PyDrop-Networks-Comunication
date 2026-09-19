@@ -1,0 +1,32 @@
+Open three terminal windows from the project root.
+
+1. Start the server:
+   build/start_server.sh
+
+2. Start client 1:
+   build/start_client.sh client1
+
+3. Start client 2:
+   build/start_client.sh client2
+
+4. Open a shell in client 1's sync folder:
+   build/open_client_sync.sh client1
+
+6. Open a shell in client 2's sync folder to check the synced file:
+   build/open_client_sync.sh client2
+
+7. create files:
+  echo "hello from client1" > hello.txt
+  echo "[print(i * '*', '\\n') for i in range(10)]" > script.py
+
+
+8. test files in the other client:
+  ls; cat hello.txt
+  ls; cat script.py
+
+
+9. update file:
+  echo "hello from client2" >> hello.txt
+  
+10. delete
+   rm -f script.py

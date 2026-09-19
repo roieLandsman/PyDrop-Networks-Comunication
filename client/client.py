@@ -133,13 +133,13 @@ def request_response(sock: socket, header: dict, payload: bytes = b"") -> tuple:
     send_message(sock, header, payload)
     server_address = f"{HOST}:{PORT}"
     client_id = header.get("client_id", "unknown")
-    log.sent(header.get("action", "UNKNOWN"), client_id, server_address)
+    log.sent(header.get("action", "UNKNOWN"), 'server', server_address)
     response = read_message(sock)
     if response is None:
         log.error("connection issue: server closed connection")
         raise ConnectionError("server closed connection")
     response_header, _ = response
-    log.received(response_header.get("action", "UNKNOWN"), client_id, server_address)
+    log.received(response_header.get("action", "UNKNOWN"), 'server', server_address)
     return response
 
 
