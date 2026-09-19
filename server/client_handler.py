@@ -2,7 +2,7 @@
 import json
 import threading
 from socket import socket
-from server.log import log
+from log import log
 from server.api import create_message
 from server.protocol import read_message, send_message, error
 from server.constants import METADATA_FILE, ERROR_UNKNOWN_ACTION, ERROR_BAD_REQUEST
@@ -12,11 +12,15 @@ from server.file_utils import write_file, build_file_metadata, storage_path
 class Server:
     """manage all server actions"""
 
-    def __init__(self) -> None:
-        self.lock = threading.RLock()
-        self.metadata: dict = {"files": dict(), "deleted": dict(), "clients": list()}
-        self.init_metadata()
-            
+    def update_metadata(self) -> None:
+        with self.lock:
+            with open(METADATA_FILE, "r", encoding="utf-8") as f:
+                self.metadata = json.load(f)
+
+    def save_metadata(self) -> None:
+        with open(METADATA_FILE, "w", encoding="utf-8") as f:
+            json.dump(self.metadata, f, indent=2, sort_keys=True)
+
     def init_metadata(self) -> None:
         with self.lock:
             if not METADATA_FILE.exists():
@@ -24,15 +28,11 @@ class Server:
                 self.save_metadata()
             else:
                 self.update_metadata()
-        
-    def update_metadata(self) -> None:
-        with self.lock:
-            with open(METADATA_FILE, "r", encoding="utf-8") as f:
-                self.metadata = json.load(f)
-    
-    def save_metadata(self) -> None:
-        with open(METADATA_FILE, "w", encoding="utf-8") as f:
-            json.dump(self.metadata, f, indent=2, sort_keys=True)  
+
+    def __init__(self) -> None:
+        self.lock = threading.RLock()
+        self.metadata: dict = {"files": dict(), "deleted": dict(), "clients": list()}
+        self.init_metadata()
 
     def add_new_client(self, client_id: str) -> None:
         """Remember one connected client id."""
@@ -47,15 +47,38 @@ class Server:
             self.update_metadata()
             return self.metadata["files"].copy()
 
+    def filter_deleted_files_not_seen_by_client(self, client_id: str) -> dict:
+        return {k: v for k, v in self.metadata["deleted"].items() if client_id not in v["seen_by"]}
+
     def snapshot_for_client(self, client_id: str) -> dict:
         with self.lock:
             self.update_metadata()
             return {
                 "files": self.metadata["files"].copy(),
                 "deleted": self.filter_deleted_files_not_seen_by_client(client_id),
-            }    
-    def filter_deleted_files_not_seen_by_client(self, client_id: str) -> dict:
-        return {k: v for k, v in self.metadata["deleted"].items() if client_id not in v["seen_by"]}
+            }
+
+    def get_previous_record(self, filename: str) -> dict:
+        """Return the newest known file or tombstone record."""
+        file_data = self.metadata["files"].get(filename)
+        if file_data:
+            return file_data
+        else:
+            return self.metadata["deleted"].get(filename, {})
+
+    def validate_write_version(self, request: dict, previous: dict, file_exists: bool) -> None:
+        """Reject writes based on an older server file version."""
+        if request.get("action") == "UPLOAD":
+            if file_exists:
+                log.error(f"stale upload rejected: {request.get('filename')}")
+                raise PermissionError("server already has a newer copy")
+            return
+        if not previous:
+            return
+        client_version = int(request.get("version", 0))
+        if client_version < int(previous.get("version", 0)):
+            log.error(f"stale update rejected: {request.get('filename')}")
+            raise PermissionError("server already has a newer copy")
 
     def save_file(self, request: dict, payload: bytes) -> dict:
         filename = request.get("filename")
@@ -77,23 +100,12 @@ class Server:
             self.save_metadata()
             return file_metadata
 
-    def validate_write_version(self, request: dict, previous: dict, file_exists: bool) -> None:
-        """Reject writes based on an older server file version."""
-        if request.get("action") == "UPLOAD":
-            if file_exists:
-                raise PermissionError("server already has a newer copy")
-            return
-        if not previous:
-            return
-        client_version = int(request.get("version", 0))
-        if client_version < int(previous.get("version", 0)):
-            raise PermissionError("server already has a newer copy")
-
     def read_file(self, filename: str) -> dict:
         """Read a stored file payload and metadata."""
         with self.lock:
             metadata = self.metadata["files"].get(filename, None)
             if metadata is None:
+                log.error(f"download failed, file not found: {filename}")
                 raise FileNotFoundError(filename)
             path = storage_path(filename)
             with open(path, "rb") as f:
@@ -105,9 +117,16 @@ class Server:
         filename = request.get("filename")
         client_id = request.get("client_id")
         with self.lock:
-            old_record = self.metadata["files"].pop(filename, None)
+            old_record = self.metadata["files"].get(filename)
             if old_record is None:
+                log.error(f"delete failed, file not found: {filename}")
                 raise FileNotFoundError(filename)
+            client_version = int(request.get("version") or 0)
+            server_version = int(old_record.get("version", 0))
+            if client_version < server_version:
+                log.error(f"stale delete rejected: {filename}")
+                raise PermissionError("server already has a newer copy")
+            self.metadata["files"].pop(filename)
             
             # delete the file
             path = storage_path(filename)
@@ -144,18 +163,8 @@ class Server:
                     filenames_to_pop.add(filename)
             for filename in filenames_to_pop:
                 self.metadata["deleted"].pop(filename)
-            
+
             self.save_metadata()
-
-
-    def get_previous_record(self, filename: str) -> dict:
-        """Return the newest known file or tombstone record."""
-        file_data = self.metadata["files"].get(filename)
-        if file_data:
-            return file_data
-        else:
-            return self.metadata["deleted"].get(filename, {})
-
 
     def remove_seen_deletions_locked(self) -> None:
         """Remove tombstones seen by every known client."""
@@ -165,9 +174,19 @@ class Server:
                 self.metadata["deleted"].pop(filename)
 
 
+def send_bad_request(sock: socket, message: str, address: tuple) -> None:
+    """Send a BAD_REQUEST response if the socket is still writable."""
+    try:
+        send_message(sock, error(ERROR_BAD_REQUEST, message))
+        log.sent("BAD_REQUEST", "unknown", address[0])
+    except OSError as error:
+        log.error(f"could not send BAD_REQUEST to {address[0]}: {error}")
+        pass
+
+
 def client_handler(sock: socket, address: tuple, server: Server) -> None:
     """Serve one connected client until it disconnects."""
-    log.action(f"client connected from {address[0]}")
+    log.info(f"client connected from {address[0]}")
     with sock:
         while True:
             try:
@@ -176,25 +195,16 @@ def client_handler(sock: socket, address: tuple, server: Server) -> None:
                     break
                 action = request.get("action", "UNKNOWN")
                 client_id = request.get("client_id", "unknown")
-                
+
                 log.received(action, client_id, address[0])
                 header, payload = create_message(action, request, payload, server)
                 send_message(sock, header, payload)
                 log.sent(action, client_id, address[0])
-                
+
             except ValueError as error:
-                log.action(f"bad request from {address[0]}: {error}")
+                log.error(f"bad request from {address[0]}: {error}")
                 send_bad_request(sock, str(error), address)
             except OSError as error:
-                log.action(f"socket issue for {address[0]}: {error}")
+                log.error(f"socket issue for {address[0]}: {error}")
                 break
-    log.action(f"client disconnected from {address[0]}")
-
-
-def send_bad_request(sock: socket, message: str, address: tuple) -> None:
-    """Send a BAD_REQUEST response if the socket is still writable."""
-    try:
-        send_message(sock, error(ERROR_BAD_REQUEST, message))
-        log.sent("BAD_REQUEST", "unknown", address[0])
-    except OSError:
-        pass
+    log.info(f"client disconnected from {address[0]}")

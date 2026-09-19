@@ -5,22 +5,13 @@ import os
 from pathlib import Path
 
 from client.constants import BUFFER_SIZE, SYNC_FOLDER
-
-
-def clean_filename(filename: str) -> str:
-    """Return a safe plain file name or raise ValueError."""
-    if not isinstance(filename, str) or not filename:
-        raise ValueError("filename is required")
-    if filename in (".", "..") or "/" in filename or "\\" in filename:
-        raise ValueError("filename must be a plain relative name")
-    if Path(filename).is_absolute():
-        raise ValueError("filename must not be absolute")
-    return filename
+from client.validation import validate_filename
 
 
 def sync_path(filename: str, folder: str | Path = SYNC_FOLDER) -> Path:
     """Return the safe local sync path for a file name."""
-    return Path(folder) / clean_filename(filename)
+    validate_filename(filename)
+    return Path(folder) / filename
 
 
 def sha256_bytes(payload: bytes) -> str:
@@ -77,9 +68,10 @@ def rename_to_local(filename: str, folder: str | Path = SYNC_FOLDER) -> Path:
 
 def file_metadata(path: Path) -> dict:
     """Build client-side metadata for one local file."""
+    validate_filename(path.name)
     stat_result = path.stat()
     return {
-        "filename": clean_filename(path.name),
+        "filename": path.name,
         "size": stat_result.st_size,
         "mtime": stat_result.st_mtime,
         "hash": sha256_file(path),

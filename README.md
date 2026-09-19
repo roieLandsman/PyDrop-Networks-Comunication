@@ -58,7 +58,5 @@ python -m server.server
 Run a client:
 
 ```bash
-python -m client.client
+python -m client.client client1
 ```
-
-The final command-line arguments and configuration files will be defined during implementation.

@@ -6,6 +6,7 @@ runtime modules.
 """
 import json
 from server.constants import *
+from log import log
 from server.protocol import ack, ack_with_payload, error
 from server.validation import (
     validate_client_id,
@@ -13,70 +14,75 @@ from server.validation import (
     validate_filename,
     validate_file_message,
     validate_filenames_list,
+    validate_version,
 )
     
     
 def handle_connect(server, request: dict, payload: bytes = b"") -> tuple[dict, bytes]:
     """Handle a CONNECT request."""
     client_id = request.get("client_id")
-    validation_error = validate_client_id(request)
-    if validation_error:
-        return validation_error, b""
-    validation_error = validate_empty_payload(payload, "CONNECT")
-    if validation_error:
-        return validation_error, b""
+    val_err = validate_client_id(request)
+    if val_err:
+        return val_err, b""
+    val_err = validate_empty_payload(payload, "CONNECT")
+    if val_err:
+        return val_err, b""
     server.add_new_client(client_id)
     return ack("Client connected", client_id=client_id)
 
 
 def handle_list_files(server, request: dict, payload: bytes = b"") -> tuple[dict, bytes]:
     """Handle a LIST_FILES request."""
-    validation_error = validate_client_id(request)
-    if validation_error:
-        return validation_error, b""
+    val_err = validate_client_id(request)
+    if val_err:
+        return val_err, b""
     return ack_with_payload("File list returned", {"files": server.list_files()})
 
 
 def handle_upload(server, request: dict, payload: bytes = b"") -> tuple[dict, bytes]:
     """Handle an UPLOAD request."""
-    validation_error = validate_file_message(request, payload)
-    if validation_error:
-        return validation_error, b""
+    val_err = validate_file_message(request, payload)
+    if val_err:
+        return val_err, b""
     try:
         metadata = server.save_file(request, payload)
     except PermissionError as exception:
+        log.error(f"upload rejected: {exception}")
         return error(ERROR_STALE_VERSION, str(exception)), b""
     return ack("Upload accepted", metadata=metadata)
 
 
 def handle_update(server, request: dict, payload: bytes = b"") -> tuple[dict, bytes]:
     """Handle an UPDATE request."""
-    validation_error = validate_file_message(request, payload)
-    if validation_error:
-        return validation_error, b""
+    val_err = validate_file_message(request, payload)
+    if val_err:
+        return val_err, b""
     try:
         metadata = server.save_file(request, payload)
     except PermissionError as exception:
+        log.error(f"update rejected: {exception}")
         return error(ERROR_STALE_VERSION, str(exception)), b""
     return ack("Update accepted", metadata=metadata)
 
 
 def handle_download(server, request: dict, payload: bytes = b"") -> tuple[dict, bytes]:
     """Handle a DOWNLOAD request."""
-    validation_error = validate_client_id(request)
-    if validation_error:
-        return validation_error, b""
-    validation_error = validate_empty_payload(payload, "DOWNLOAD")
-    if validation_error:
-        return validation_error, b""
-    validation_error = validate_filename(request.get("filename"))
-    if validation_error:
-        return validation_error, b""
+    val_err = validate_client_id(request)
+    if val_err:
+        return val_err, b""
+    val_err = validate_empty_payload(payload, "DOWNLOAD")
+    if val_err:
+        return val_err, b""
+    val_err = validate_filename(request.get("filename"))
+    if val_err:
+        return val_err, b""
     try:
         result = server.read_file(request.get("filename"))
     except FileNotFoundError:
+        log.error(f"download rejected, file not found: {request.get('filename')}")
         return error(ERROR_FILE_NOT_FOUND, "file was not found"), b""
     except ValueError as exception:
+        log.error(f"download rejected: {exception}")
         return error(ERROR_INVALID_FILENAME, str(exception)), b""
     header, _ = ack("Download ready", metadata=result["metadata"])
     return header, result["payload"]
@@ -84,42 +90,51 @@ def handle_download(server, request: dict, payload: bytes = b"") -> tuple[dict, 
 
 def handle_delete(server, request: dict, payload: bytes = b"") -> tuple[dict, bytes]:
     """Handle a DELETE request."""
-    validation_error = validate_client_id(request)
-    if validation_error:
-        return validation_error, b""
-    validation_error = validate_filename(request.get("filename"))
-    if validation_error:
-        return validation_error, b""
+    val_err = validate_client_id(request)
+    if val_err:
+        return val_err, b""
+    val_err = validate_filename(request.get("filename"))
+    if val_err:
+        return val_err, b""
+    val_err = validate_version(request.get("version"))
+    if val_err:
+        return val_err, b""
     try:
         result = server.delete_file(request)
+    except PermissionError as exception:
+        log.error(f"delete rejected: {exception}")
+        return error(ERROR_STALE_VERSION, str(exception)), b""
     except FileNotFoundError:
+        log.error(f"delete rejected, file not found: {request.get('filename')}")
         return error(ERROR_FILE_NOT_FOUND, "file was not found"), b""
     except ValueError as exception:
+        log.error(f"delete rejected: {exception}")
         return error(ERROR_INVALID_FILENAME, str(exception)), b""
     return ack("Delete accepted", metadata=result)
 
 
 def handle_check_updates(server, request: dict, payload: bytes = b"") -> tuple[dict, bytes]:
     """Handle a CHECK_UPDATES request."""
-    validation_error = validate_client_id(request)
-    if validation_error:
-        return validation_error, b""
+    val_err = validate_client_id(request)
+    if val_err:
+        return val_err, b""
     return ack_with_payload("Snapshot returned", server.snapshot_for_client(request.get("client_id")))
 
 
 def handle_delete_seen(server, request: dict, payload: bytes = b"") -> tuple[dict, bytes]:
     """Handle a DELETE_SEEN request."""
-    validation_error = validate_client_id(request)
-    if validation_error:
-        return validation_error, b""
-    validation_error = validate_filenames_list(request)
-    if validation_error:
-        return validation_error, b""
+    val_err = validate_client_id(request)
+    if val_err:
+        return val_err, b""
+    val_err = validate_filenames_list(request)
+    if val_err:
+        return val_err, b""
     
     filenames = request.get("filenames")
     try:
         server.update_deletion_seen_by_client(request.get("client_id"), filenames)
     except ValueError as exception:
+        log.error(f"delete seen rejected: {exception}")
         return error(ERROR_INVALID_FILENAME, str(exception)), b""
     return ack("Deletions marked seen", metadata={"filenames": filenames})
 

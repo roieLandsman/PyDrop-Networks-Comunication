@@ -12,8 +12,8 @@ This folder hosts the PyDrop client implementation.
 - Write server-provided files into `client/sync_folder/`.
 - Avoid treating server-applied updates as new local user changes.
 - Handle basic disconnects, reconnects, errors, and logs.
-- Own all client-side protocol framing, constants, file hashing, and path validation code.
-- Keep client request builder API functions in `client/api/requests.py`.
+- Own all client-side protocol framing, constants, file hashing, response parsing, and path validation code.
+- Keep client request builders in `client/api/requests.py` and response parsers in `client/api/responses.py`.
 
 ## Expected Files
 
@@ -22,14 +22,15 @@ This folder hosts the PyDrop client implementation.
 - `protocol.py`: client-side implementation of the TCP framing convention.
 - `file_utils.py`: client-side file hashing, metadata, and safe path helpers.
 - `constants.py`: client-side defaults, message names, and sync folder paths.
-- `api/requests.py`: the single client API file, with one builder function for each unique request type.
+- `api/requests.py`: client request builders, with one builder function for each unique request type.
+- `api/responses.py`: client response payload parsing helpers.
 - `sync_folder/`: default local folder for sample/runtime synchronization.
 
 Do not import runtime code from `server/` or from any shared project package.
 
 ## API Folder Rule
 
-The `api/` folder must contain exactly one source file: `requests.py`. Add one public function for each unique request sent by the client. Do not split request builders across multiple files.
+The `api/` folder contains `requests.py` for outgoing request builders and `responses.py` for incoming response parsers. Add one public request-builder function for each unique request sent by the client.
 
 ## Client Source Of Truth
 

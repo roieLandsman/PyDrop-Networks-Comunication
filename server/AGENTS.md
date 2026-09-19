@@ -13,7 +13,7 @@ This folder hosts the central PyDrop server implementation.
 - Send `ACK` or `ERROR` after each operation.
 - Log connection lifecycle events, file operations, errors, and disconnects.
 - Own all server-side protocol framing, constants, file hashing, and path validation code.
-- Keep server request handling API functions in `server/api/requests.py`.
+- Keep server request handling API functions in `server/api.py`.
 
 ## Expected Files
 
@@ -22,14 +22,14 @@ This folder hosts the central PyDrop server implementation.
 - `protocol.py`: server-side implementation of the TCP framing convention.
 - `file_utils.py`: server-side file hashing, metadata, and safe path helpers.
 - `constants.py`: server-side defaults, message names, and storage paths.
-- `api/requests.py`: the single server API file, with one handler function for each unique request type.
+- `api.py`: server request handlers, with one handler function for each unique request type.
 - `storage/`: runtime storage and metadata for synchronized files.
 
 Do not put client-side scanning logic here. Do not import runtime code from `client/` or from any shared project package.
 
-## API Folder Rule
+## API File Rule
 
-The `api/` folder must contain exactly one source file: `requests.py`. Add one public function for each unique request accepted by the server. Do not split request handlers across multiple files.
+The server uses `server/api.py` as the single API handler file. Add one public handler function for each unique request accepted by the server.
 
 ## Server Source Of Truth
 
