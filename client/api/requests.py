@@ -19,16 +19,6 @@ def connect(client_id: str) -> dict:
     }
 
 
-def list_files(client_id: str) -> dict:
-    """Build a LIST_FILES request header."""
-    validate_client_id(client_id)
-    return {
-        "action": "LIST_FILES",
-        "client_id": client_id,
-        "size": 0,
-    }
-
-
 def upload(
     client_id: str,
     filename: str,

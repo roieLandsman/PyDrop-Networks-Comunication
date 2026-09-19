@@ -42,11 +42,6 @@ class Server:
                 self.metadata["clients"].append(client_id)
                 self.save_metadata()
 
-    def list_files(self) -> dict:
-        with self.lock:
-            self.update_metadata()
-            return self.metadata["files"].copy()
-
     def filter_deleted_files_not_seen_by_client(self, client_id: str) -> dict:
         return {k: v for k, v in self.metadata["deleted"].items() if client_id not in v["seen_by"]}
 

@@ -6,8 +6,8 @@ The server and client must each implement this convention inside their own folde
 
 Each side has an `api/requests.py` file. That file contains one function for each unique request type:
 
-- Client: request builder functions named `connect`, `list_files`, `upload`, `update`, `download`, `delete`, `delete_seen`, and `check_updates`.
-- Server: request handler functions named `handle_connect`, `handle_list_files`, `handle_upload`, `handle_update`, `handle_download`, `handle_delete`, `handle_delete_seen`, and `handle_check_updates`.
+- Client: request builder functions named `connect`, `upload`, `update`, `download`, `delete`, `delete_seen`, and `check_updates`.
+- Server: request handler functions named `handle_connect`, `handle_upload`, `handle_update`, `handle_download`, `handle_delete`, `handle_delete_seen`, and `handle_check_updates`.
 
 ## Transport
 
@@ -52,31 +52,6 @@ Client announces itself to the server.
   "action": "CONNECT",
   "client_id": "client-1",
   "size": 0
-}
-```
-
-### LIST_FILES
-
-Client asks for the server file list and versions.
-
-```json
-{
-  "action": "LIST_FILES",
-  "client_id": "client-1",
-  "size": 0
-}
-```
-
-Successful response metadata is sent as a JSON payload so the response header
-stays small:
-
-```json
-{
-  "action": "ACK",
-  "status": "ok",
-  "message": "File list returned",
-  "content_type": "application/json",
-  "size": 79
 }
 ```
 

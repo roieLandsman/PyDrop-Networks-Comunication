@@ -30,14 +30,6 @@ def handle_connect(server, request: dict, payload: bytes = b"") -> tuple[dict, b
     return ack("Client connected", client_id=client_id)
 
 
-def handle_list_files(server, request: dict, payload: bytes = b"") -> tuple[dict, bytes]:
-    """Handle a LIST_FILES request."""
-    val_err = validate_client_id(request)
-    if val_err:
-        return val_err, b""
-    return ack_with_payload("File list returned", {"files": server.list_files()})
-
-
 def handle_upload(server, request: dict, payload: bytes = b"") -> tuple[dict, bytes]:
     """Handle an UPLOAD request."""
     val_err = validate_file_message(request, payload)
@@ -142,7 +134,6 @@ def create_message(action: str, request: dict, payload: bytes, server) -> [dict,
     """Create a decoded message to the matching action"""
     match action:
         case "CONNECT": return handle_connect(server, request, payload)
-        case "LIST_FILES": return handle_list_files(server, request, payload)
         case "UPLOAD": return handle_upload(server, request, payload)
         case "UPDATE": return handle_update(server, request, payload)
         case "DOWNLOAD": return handle_download(server, request, payload)

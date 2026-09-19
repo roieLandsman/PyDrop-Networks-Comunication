@@ -7,7 +7,7 @@ This folder hosts the central PyDrop server implementation.
 - Open a TCP socket and listen for client connections.
 - Support multiple clients concurrently, initially with one thread or handler per client.
 - Decode and validate protocol messages from clients.
-- Handle `CONNECT`, `LIST_FILES`, `UPLOAD`, `UPDATE`, `DOWNLOAD`, `DELETE`, and `CHECK_UPDATES`.
+- Handle `CONNECT`, `UPLOAD`, `UPDATE`, `DOWNLOAD`, `DELETE`, and `CHECK_UPDATES`.
 - Maintain server-side metadata for synchronized files.
 - Store the authoritative copy of synchronized files under `server/storage/`.
 - Send `ACK` or `ERROR` after each operation.
