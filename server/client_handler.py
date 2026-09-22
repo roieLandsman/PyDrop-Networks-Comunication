@@ -10,8 +10,6 @@ from server.file_utils import write_file, build_file_metadata, storage_path
 
 
 class Server:
-    """manage all server actions"""
-
     def update_metadata(self) -> None:
         with self.lock:
             with open(METADATA_FILE, "r", encoding="utf-8") as f:
@@ -35,7 +33,6 @@ class Server:
         self.init_metadata()
 
     def add_new_client(self, client_id: str) -> None:
-        """Remember one connected client id."""
         with self.lock:
             self.update_metadata()
             if client_id not in self.metadata["clients"]:
@@ -54,7 +51,6 @@ class Server:
             }
 
     def get_previous_record(self, filename: str) -> dict:
-        """Return the newest known file or tombstone record."""
         file_data = self.metadata["files"].get(filename)
         if file_data:
             return file_data
@@ -62,7 +58,6 @@ class Server:
             return self.metadata["deleted"].get(filename, {})
 
     def validate_write_version(self, request: dict, previous: dict, file_exists: bool) -> None:
-        """Reject writes based on an older server file version."""
         if request.get("action") == "UPLOAD":
             if file_exists:
                 log.error(f"stale upload rejected: {request.get('filename')}")
@@ -96,7 +91,6 @@ class Server:
             return file_metadata
 
     def read_file(self, filename: str) -> dict:
-        """Read a stored file payload and metadata."""
         with self.lock:
             metadata = self.metadata["files"].get(filename, None)
             if metadata is None:
@@ -108,7 +102,6 @@ class Server:
             return {"metadata": metadata, "payload": payload}
 
     def delete_file(self, request: dict) -> dict:
-        """Remove a stored file and create a delete tombstone."""
         filename = request.get("filename")
         client_id = request.get("client_id")
         with self.lock:
@@ -139,7 +132,6 @@ class Server:
             return self.metadata["deleted"][filename]
 
     def update_deletion_seen_by_client(self, client_id: str, filenames: list[str]) -> None:
-        """Mark client-visible delete tombstones as applied."""
         with self.lock:
             for filename in filenames:
                 deleted_file_data = self.metadata["deleted"].get(filename, None)
@@ -162,7 +154,6 @@ class Server:
             self.save_metadata()
 
 def send_bad_request(sock: socket, message: str, address: tuple) -> None:
-    """Send a BAD_REQUEST response if the socket is still writable."""
     try:
         send_message(sock, error(ERROR_BAD_REQUEST, message))
         log.sent("BAD_REQUEST", "unknown", address[0])
@@ -172,7 +163,6 @@ def send_bad_request(sock: socket, message: str, address: tuple) -> None:
 
 
 def client_handler(sock: socket, address: tuple, server: Server) -> None:
-    """Serve one connected client until it disconnects."""
     log.info(f"client connected from {address[0]}")
     with sock:
         while True:

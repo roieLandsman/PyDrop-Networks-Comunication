@@ -6,7 +6,6 @@ from log import log
 
 
 def recv_exact(sock: socket, byte_count: int) -> bytes | None:
-    """Receive exactly byte_count bytes from a socket."""
     chunks = []
     remaining = byte_count
     while remaining > 0:
@@ -19,7 +18,6 @@ def recv_exact(sock: socket, byte_count: int) -> bytes | None:
 
 
 def decode_header(header_bytes: bytes | None) -> dict:
-    """Decode JSON header bytes into a dictionary."""
     if header_bytes is None:
         log.error("protocol error: header ended before declared size")
         raise ValueError("Header ended before declared size")
@@ -37,7 +35,6 @@ def decode_header(header_bytes: bytes | None) -> dict:
     
 
 def read_message(sock: socket) -> tuple:
-    """Read one framed PyDrop message from a socket."""
     header_size_bytes = recv_exact(sock, HEADER_LENGTH_BYTES)
     if header_size_bytes is None:
         return None, None
@@ -65,7 +62,6 @@ def read_message(sock: socket) -> tuple:
 
 
 def send_message(sock: socket, message_header: dict, payload: bytes = b"") -> None:
-    """Send one framed PyDrop message through a socket."""
     message_header["size"] = len(payload)
     
     # turn the header to a proper JSON format
@@ -89,7 +85,6 @@ def ack(message: str, client_id: str  = None, metadata: dict  = None, content_ty
 
 
 def ack_with_payload(message: str, document: dict) -> tuple:
-    """Build an ACK response with a JSON payload body."""
     response, _ = ack(message, content_type="application/json")
     payload = json.dumps(document, separators=(",", ":")).encode("utf-8")
     return response, payload

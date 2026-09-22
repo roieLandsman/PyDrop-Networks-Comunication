@@ -1,12 +1,7 @@
-"""Client-side validation helpers."""
-
 from pathlib import Path
-
 from log import log
 
-
 def validate_client_id(client_id: str) -> None:
-    """Raise ValueError when client_id is missing or invalid."""
     if not isinstance(client_id, str):
         log.error("validation failed: client_id must be a string")
         raise ValueError("client_id must be a string")
@@ -16,7 +11,6 @@ def validate_client_id(client_id: str) -> None:
 
 
 def validate_filename(filename: str) -> None:
-    """Raise ValueError when filename is not a safe plain file name."""
     if not isinstance(filename, str):
         log.error("validation failed: filename must be a string")
         raise ValueError("filename must be a string")
@@ -32,7 +26,6 @@ def validate_filename(filename: str) -> None:
 
 
 def validate_file_values(size: int, mtime: float, file_hash: str) -> None:
-    """Raise ValueError when file request metadata is invalid."""
     if not isinstance(size, int) or size < 0:
         log.error("validation failed: size must be a non-negative integer")
         raise ValueError("size must be a non-negative integer")
@@ -48,7 +41,6 @@ def validate_file_values(size: int, mtime: float, file_hash: str) -> None:
 
 
 def validate_version(version: int | None) -> None:
-    """Raise ValueError when version is invalid."""
     if version is None:
         return
     if not isinstance(version, int) or version < 0:
@@ -57,7 +49,6 @@ def validate_version(version: int | None) -> None:
 
 
 def validate_filenames_list(filenames: list[str]) -> None:
-    """Raise ValueError when filenames is not a list of safe file names."""
     if not isinstance(filenames, list):
         log.error("validation failed: filenames must be a list")
         raise ValueError("filenames must be a list")

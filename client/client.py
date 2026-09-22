@@ -1,5 +1,3 @@
-"""PyDrop client entry point."""
-
 from argparse import ArgumentParser
 import json
 from socket import socket, create_connection
@@ -23,14 +21,10 @@ class Client:
         self.folder = Folder(self.folder_name)
         self.snapshot = self.folder.export()
         self.load_state()
-
-    @property
-    def state_file(self) -> Path:
-        """Return the local client state file path."""
-        return self.folder_name / STATE_FILE_NAME
+        
+        state_file = self.folder_name / STATE_FILE_NAME
 
     def load_state(self) -> None:
-        """Load the previous accepted sync baseline if it exists."""
         path = self.state_file
         if not path.exists():
             return
@@ -46,18 +40,15 @@ class Client:
             log.error(f"could not load client state: {error}")
 
     def save_state(self) -> None:
-        """Save the accepted sync baseline for future reconnects."""
         file_data = {"snapshot": self.snapshot, "server_versions": self.server_versions}
         with open(self.state_file, "w", encoding="utf-8") as f:
             json.dump(file_data, f, indent=4, sort_keys=True)
 
     def refresh_snapshot(self) -> dict:
-        """Scan the folder and return local changes."""
         self.folder.refresh()
         return self.folder.get_diff(self.snapshot)
 
     def has_local_edit(self, filename: str) -> bool:
-        """Return True when a local file differs from tracked state."""
         self.folder.refresh()
         metadata = self.folder.get_single_file_metadata(filename)
         known_metadata = self.snapshot.get(filename)
@@ -68,12 +59,10 @@ class Client:
         return metadata.get("hash") != known_metadata.get("hash")
 
     def has_current_file(self, filename: str) -> bool:
-        """Return True when the current folder contains filename."""
         self.folder.refresh()
         return self.folder.get_single_file_metadata(filename) is not None
 
     def has_local_remote_conflict(self, filename: str, metadata: dict) -> bool:
-        """Return True when a local file differs from server metadata."""
         self.folder.refresh()
         local_metadata = self.folder.get_single_file_metadata(filename)
         if local_metadata is None:
@@ -81,24 +70,20 @@ class Client:
         return local_metadata.get("hash") != metadata.get("hash")
 
     def remember_version(self, filename: str, version: int) -> None:
-        """Store the latest server version for a file."""
         self.server_versions[filename] = int(version)
         self.save_state()
 
     def remember_synced_file(self, filename: str, metadata: dict, version: int) -> None:
-        """Mark one local file as accepted by the server."""
         self.folder.update_single_file_metadata(filename, metadata)
         self.snapshot[filename] = metadata
         self.remember_version(filename, version)
 
     def remember_synced_delete(self, filename: str, version: int) -> None:
-        """Mark one local deletion as accepted by the server."""
         self.folder.delete_file(filename)
         self.snapshot.pop(filename, None)
         self.remember_version(filename, version)
 
     def apply_download(self, filename: str, payload: bytes, metadata: dict) -> None:
-        """Write a downloaded file and update local state."""
         write_file(filename, payload, self.folder_name, metadata.get("mtime"))
         self.folder.refresh()
         self.snapshot = self.folder.export()
@@ -106,7 +91,6 @@ class Client:
         self.save_state()
 
     def apply_delete(self, filename: str) -> None:
-        """Delete a remote tombstone locally and update local state."""
         delete_file(filename, self.folder_name)
         self.folder.refresh()
         self.snapshot = self.folder.export()
@@ -114,7 +98,6 @@ class Client:
         self.save_state()
 
     def preserve_local_copy(self, filename: str) -> None:
-        """Move one local file to an ignored .local backup."""
         rename_to_local(filename, self.folder_name)
         self.folder.refresh()
         self.snapshot = self.folder.export()
@@ -123,7 +106,6 @@ class Client:
 
 
 def request_response(sock: socket, header: dict, payload: bytes = b"") -> tuple:
-    """Send one request and return one response."""
     send_message(sock, header, payload)
     server_address = f"{HOST}:{PORT}"
     client_id = header.get("client_id", "unknown")
@@ -138,7 +120,6 @@ def request_response(sock: socket, header: dict, payload: bytes = b"") -> tuple:
 
 
 def ensure_ack(response: tuple) -> tuple:
-    """Return response header or raise for server ERROR."""
     header, payload = response
     if header.get("action") == "ERROR":
         log.error(f"server returned error: {header.get('code')}: {header.get('message')}")
@@ -150,13 +131,11 @@ def ensure_ack(response: tuple) -> tuple:
 
 
 def send_connect(sock: socket, client: Client) -> None:
-    """Register this client with the server."""
     ensure_ack(request_response(sock, requests.connect(client.client_id)))
     log.info(f"connected as {client.client_id}")
 
 
 def fetch_server_snapshot(sock: socket, client: Client) -> dict:
-    """Return the server snapshot without applying its changes."""
     header, payload = ensure_ack(
         request_response(sock, requests.check_updates(client.client_id))
     )
@@ -165,14 +144,12 @@ def fetch_server_snapshot(sock: socket, client: Client) -> dict:
 
 
 def has_unseen_server_version(client: Client, filename: str, metadata: dict) -> bool:
-    """Return True when the server has a version this client missed."""
     server_version = int(metadata.get("version", 0))
     local_version = client.server_versions.get(filename, 0)
     return server_version > local_version
 
 
 def has_delete_conflict(client: Client, filename: str, metadata: dict) -> bool:
-    """Return True when a remote tombstone would lose local content."""
     if not has_unseen_server_version(client, filename, metadata):
         return False
     if client.has_local_edit(filename):
@@ -181,7 +158,6 @@ def has_delete_conflict(client: Client, filename: str, metadata: dict) -> bool:
 
 
 def download_one_file(sock: socket, client: Client, filename: str) -> None:
-    """Download one server file and write it locally."""
     response = request_response(sock, requests.download(client.client_id, filename))
     header, payload = ensure_ack(response)
     metadata = header.get("metadata", {})
@@ -193,7 +169,6 @@ def download_one_file(sock: socket, client: Client, filename: str) -> None:
 
 
 def has_upload_conflict(sock: socket, client: Client, filename: str) -> bool:
-    """Return True after resolving a missed server update for filename."""
     snapshot = fetch_server_snapshot(sock, client)
     metadata = snapshot["files"].get(filename)
     deleted_metadata = snapshot["deleted"].get(filename)
@@ -216,7 +191,6 @@ def has_upload_conflict(sock: socket, client: Client, filename: str) -> bool:
 
 
 def build_file_request(client: Client, action: str, metadata: dict) -> dict:
-    """Build an UPLOAD or UPDATE request from file metadata."""
     if action == "UPLOAD":
         return requests.upload(
             client.client_id,
@@ -237,7 +211,6 @@ def build_file_request(client: Client, action: str, metadata: dict) -> dict:
 
 
 def send_file_change(sock: socket, client: Client, action: str, filename: str) -> None:
-    """Upload a new or modified file to the server."""
     metadata = client.folder.get_single_file_metadata(filename)
     if metadata is None:
         return
@@ -261,7 +234,6 @@ def send_file_change(sock: socket, client: Client, action: str, filename: str) -
 
 
 def send_delete(sock: socket, client: Client, filename: str) -> None:
-    """Send a local delete request to the server."""
     version = client.server_versions.get(filename, 0)
     try:
         header = requests.delete(client.client_id, filename, version)
@@ -279,7 +251,6 @@ def send_delete(sock: socket, client: Client, filename: str) -> None:
 
 
 def send_local_changes(sock: socket, client: Client) -> None:
-    """Send local added, modified, and deleted files."""
     changes = client.refresh_snapshot()
     for filename in changes["added"]:
         send_file_change(sock, client, "UPLOAD", filename)
@@ -290,12 +261,10 @@ def send_local_changes(sock: socket, client: Client) -> None:
 
 
 def should_check_updates(client: Client) -> bool:
-    """Return True when it is time to ask for server updates."""
     return time.monotonic() - client.last_update_check >= UPDATE_INTERVAL_SECONDS
 
 
 def upload_local_only_files(sock: socket, client: Client, remote_files: dict) -> None:
-    """Upload startup files that are absent from the server snapshot."""
     local_names = sorted(client.snapshot)
     for filename in local_names:
         if filename not in remote_files:
@@ -303,7 +272,6 @@ def upload_local_only_files(sock: socket, client: Client, remote_files: dict) ->
 
 
 def preserve_download_conflict(client: Client, filename: str, metadata: dict) -> None:
-    """Save dirty local content before downloading an unseen server version."""
     if not has_unseen_server_version(client, filename, metadata):
         return
     is_fresh_conflict = filename not in client.server_versions
@@ -315,7 +283,6 @@ def preserve_download_conflict(client: Client, filename: str, metadata: dict) ->
 
 
 def is_current_file(client: Client, filename: str, metadata: dict) -> bool:
-    """Return True when the local file already matches the server file."""
     version = int(metadata.get("version", 0))
     local_metadata = client.snapshot.get(filename)
     if local_metadata is None:
@@ -327,7 +294,6 @@ def is_current_file(client: Client, filename: str, metadata: dict) -> bool:
 
 
 def download_changed_files(sock: socket, client: Client, files: dict) -> None:
-    """Download remote files whose server version is newer."""
     for filename, metadata in sorted(files.items()):
         try:
             validate_filename(filename)
@@ -341,7 +307,6 @@ def download_changed_files(sock: socket, client: Client, files: dict) -> None:
 
 
 def mark_remote_deletions(sock: socket, client: Client, deleted: dict) -> None:
-    """Apply remote tombstones and acknowledge them."""
     filenames = []
     for filename, metadata in sorted(deleted.items()):
         try:
@@ -363,7 +328,6 @@ def mark_remote_deletions(sock: socket, client: Client, deleted: dict) -> None:
 
 
 def check_remote_updates(sock: socket, client: Client) -> dict:
-    """Download changed remote files and apply remote deletions."""
     snapshot = fetch_server_snapshot(sock, client)
     download_changed_files(sock, client, snapshot["files"])
     mark_remote_deletions(sock, client, snapshot["deleted"])
@@ -371,14 +335,12 @@ def check_remote_updates(sock: socket, client: Client) -> dict:
 
 
 def initial_reconcile(sock: socket, client: Client) -> None:
-    """Send local changes, apply server files, then upload local-only files."""
     send_local_changes(sock, client)
     snapshot = check_remote_updates(sock, client)
     upload_local_only_files(sock, client, snapshot["files"])
 
 
 def run_connected_loop(sock: socket, client: Client) -> None:
-    """Run sync work while connected to the server."""
     while True:
         send_local_changes(sock, client)
         if should_check_updates(client):
@@ -387,7 +349,6 @@ def run_connected_loop(sock: socket, client: Client) -> None:
 
 
 def sync_with_server(client: Client) -> None:
-    """Run the reconnecting client synchronization loop."""
     log.info(f"watching folder {client.folder}")
     while True:
         try:
@@ -402,7 +363,6 @@ def sync_with_server(client: Client) -> None:
 
 
 def main() -> None:
-    """Run the PyDrop client from the command line."""
     parser = ArgumentParser(description="Run a PyDrop client")
     parser.add_argument("--client_id")
     parser.add_argument("--sync_folder", default=SYNC_FOLDER, type=Path)

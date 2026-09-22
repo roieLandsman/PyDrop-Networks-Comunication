@@ -1,9 +1,3 @@
-"""Server-side request handlers for the PyDrop socket API.
-
-Each public function represents one unique request type accepted by the server.
-The server API layer is standalone and must not import client code or shared
-runtime modules.
-"""
 from server.constants import *
 from log import log
 from server.protocol import ack, ack_with_payload, error
@@ -18,7 +12,6 @@ from server.validation import (
     
     
 def handle_connect(server, request: dict, payload: bytes = b"") -> tuple[dict, bytes]:
-    """Handle a CONNECT request."""
     client_id = request.get("client_id")
     val_err = validate_client_id(request)
     if val_err:
@@ -31,7 +24,6 @@ def handle_connect(server, request: dict, payload: bytes = b"") -> tuple[dict, b
 
 
 def handle_upload(server, request: dict, payload: bytes = b"") -> tuple[dict, bytes]:
-    """Handle an UPLOAD request."""
     val_err = validate_file_message(request, payload)
     if val_err:
         return val_err, b""
@@ -44,7 +36,6 @@ def handle_upload(server, request: dict, payload: bytes = b"") -> tuple[dict, by
 
 
 def handle_update(server, request: dict, payload: bytes = b"") -> tuple[dict, bytes]:
-    """Handle an UPDATE request."""
     val_err = validate_file_message(request, payload)
     if val_err:
         return val_err, b""
@@ -57,7 +48,6 @@ def handle_update(server, request: dict, payload: bytes = b"") -> tuple[dict, by
 
 
 def handle_download(server, request: dict, payload: bytes = b"") -> tuple[dict, bytes]:
-    """Handle a DOWNLOAD request."""
     val_err = validate_client_id(request)
     if val_err:
         return val_err, b""
@@ -80,7 +70,6 @@ def handle_download(server, request: dict, payload: bytes = b"") -> tuple[dict, 
 
 
 def handle_delete(server, request: dict, payload: bytes = b"") -> tuple[dict, bytes]:
-    """Handle a DELETE request."""
     val_err = validate_client_id(request)
     if val_err:
         return val_err, b""
@@ -105,7 +94,6 @@ def handle_delete(server, request: dict, payload: bytes = b"") -> tuple[dict, by
 
 
 def handle_check_updates(server, request: dict, payload: bytes = b"") -> tuple[dict, bytes]:
-    """Handle a CHECK_UPDATES request."""
     val_err = validate_client_id(request)
     if val_err:
         return val_err, b""
@@ -113,7 +101,6 @@ def handle_check_updates(server, request: dict, payload: bytes = b"") -> tuple[d
 
 
 def handle_delete_seen(server, request: dict, payload: bytes = b"") -> tuple[dict, bytes]:
-    """Handle a DELETE_SEEN request."""
     val_err = validate_client_id(request)
     if val_err:
         return val_err, b""
@@ -131,7 +118,6 @@ def handle_delete_seen(server, request: dict, payload: bytes = b"") -> tuple[dic
 
 
 def create_message(action: str, request: dict, payload: bytes, server) -> [dict, bytes]:
-    """Create a decoded message to the matching action"""
     match action:
         case "CONNECT": return handle_connect(server, request, payload)
         case "UPLOAD": return handle_upload(server, request, payload)

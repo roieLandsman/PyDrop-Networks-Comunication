@@ -1,7 +1,4 @@
-"""Client-side PyDrop constants."""
-
 from pathlib import Path
-
 
 # Docker clients reach the server by network alias; local clients use localhost.
 HOST = "pydrop-server" if Path("/.dockerenv").exists() else "127.0.0.1"

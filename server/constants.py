@@ -1,8 +1,5 @@
-"""Server-side PyDrop constants."""
-
 import os
 from pathlib import Path
-
 
 HOST = os.environ.get("PYDROP_BIND_HOST", "127.0.0.1")
 PORT = int(os.environ.get("PYDROP_PORT", "5001"))
