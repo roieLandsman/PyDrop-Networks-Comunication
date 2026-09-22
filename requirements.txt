@@ -1,1 +1,0 @@
-# The base PyDrop implementation should use only the Python standard library.
