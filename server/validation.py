@@ -9,6 +9,7 @@ from server.protocol import error
 
 
 def validate_filename(filename) -> dict | None:
+    "validates that a filename exists, is a string, is not absolute, and is inside the server folder"
     if not filename:
         log.error("validation failed: filename is required")
         return error(ERROR_INVALID_FILENAME, "filename is required")
@@ -24,6 +25,7 @@ def validate_filename(filename) -> dict | None:
     return None
 
 def validate_file_message(request: dict, payload: bytes) -> dict | None:
+    "validates an upload/update request. checking client id, payload size, payload hash, modification time, and filename"
     if not request.get("client_id"):
         log.error("validation failed: client_id is required")
         return error(ERROR_BAD_REQUEST, "client_id is required")
@@ -54,6 +56,7 @@ def validate_file_message(request: dict, payload: bytes) -> dict | None:
     
     
 def validate_empty_payload(payload: bytes, request_name: str) -> dict | None:
+    "validate that that the pay load is empty"
     if payload:
         log.error(f"validation failed: {request_name} must not include a payload")
         return error(ERROR_BAD_REQUEST, f"{request_name} must not include a payload")
@@ -61,6 +64,7 @@ def validate_empty_payload(payload: bytes, request_name: str) -> dict | None:
     
 
 def validate_client_id(request: dict) -> dict | None:
+    "validate the the request contain client_id"
     if not request.get("client_id"):
         log.error("validation failed: client_id is required")
         return error(ERROR_BAD_REQUEST, "client_id is required")
@@ -68,7 +72,7 @@ def validate_client_id(request: dict) -> dict | None:
 
 
 def validate_version(version: int | None) -> dict | None:
-    """Return an error when version is malformed."""
+    "validate that the version provided is a positive integer"
     if version is None:
         return None
     if not isinstance(version, int) or version < 0:
@@ -78,6 +82,7 @@ def validate_version(version: int | None) -> dict | None:
 
 
 def validate_filenames_list(request: dict) -> dict | None:
+    "validated off fiels in the request"
     filenames = request.get("filenames")
     if not isinstance(filenames, list):
         log.error("validation failed: filenames must be a list")

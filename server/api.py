@@ -5,6 +5,7 @@ from server.validation import *
     
     
 def handle_connect(server, request: dict, payload: bytes = b"") -> tuple[dict, bytes]:
+    "validate then aknowledge or reject a connection request from client"
     client_id = request.get("client_id")
     val_err = validate_client_id(request)
     if val_err:
@@ -17,6 +18,7 @@ def handle_connect(server, request: dict, payload: bytes = b"") -> tuple[dict, b
 
 
 def handle_upload(server, request: dict, payload: bytes = b"") -> tuple[dict, bytes]:
+    "validate then aknowledge or reject a request to upload a file"
     val_err = validate_file_message(request, payload)
     if val_err:
         return val_err, b""
@@ -29,6 +31,7 @@ def handle_upload(server, request: dict, payload: bytes = b"") -> tuple[dict, by
 
 
 def handle_update(server, request: dict, payload: bytes = b"") -> tuple[dict, bytes]:
+    "validate then aknowledge or reject a request to update a file"
     val_err = validate_file_message(request, payload)
     if val_err:
         return val_err, b""
@@ -41,6 +44,7 @@ def handle_update(server, request: dict, payload: bytes = b"") -> tuple[dict, by
 
 
 def handle_download(server, request: dict, payload: bytes = b"") -> tuple[dict, bytes]:
+    "validate then aknowledge or reject a request to download a file"
     val_err = validate_client_id(request)
     if val_err:
         return val_err, b""
@@ -63,6 +67,7 @@ def handle_download(server, request: dict, payload: bytes = b"") -> tuple[dict, 
 
 
 def handle_delete(server, request: dict, payload: bytes = b"") -> tuple[dict, bytes]:
+"validate then aknowledge or reject a request to delete a file"
     val_err = validate_client_id(request)
     if val_err:
         return val_err, b""
@@ -87,6 +92,7 @@ def handle_delete(server, request: dict, payload: bytes = b"") -> tuple[dict, by
 
 
 def handle_check_updates(server, request: dict, payload: bytes = b"") -> tuple[dict, bytes]:
+    "validate then aknowledge or reject a request to check for new updates"
     val_err = validate_client_id(request)
     if val_err:
         return val_err, b""
@@ -94,6 +100,7 @@ def handle_check_updates(server, request: dict, payload: bytes = b"") -> tuple[d
 
 
 def handle_delete_seen(server, request: dict, payload: bytes = b"") -> tuple[dict, bytes]:
+    "validate then aknowledge or reject a request notify the client saw the deletion"
     val_err = validate_client_id(request)
     if val_err:
         return val_err, b""
@@ -111,6 +118,7 @@ def handle_delete_seen(server, request: dict, payload: bytes = b"") -> tuple[dic
 
 
 def create_message(action: str, request: dict, payload: bytes, server) -> [dict, bytes]:
+    "maps the relevant handler function to the provided action"
     match action:
         case "CONNECT": return handle_connect(server, request, payload)
         case "UPLOAD": return handle_upload(server, request, payload)

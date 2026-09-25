@@ -6,6 +6,7 @@ from log import log
 
 
 def recv_exact(sock: socket, byte_count: int) -> bytes | None:
+    "read byte_count of bytes from the given socket. return None when the connection closes before reading the required amount of bytes"
     chunks = []
     remaining = byte_count
     while remaining > 0:
@@ -18,6 +19,7 @@ def recv_exact(sock: socket, byte_count: int) -> bytes | None:
 
 
 def decode_header(header_bytes: bytes | None) -> dict:
+    "convert bytes of a header to json and validate it"
     if header_bytes is None:
         log.error("protocol error: header ended before declared size")
         raise ValueError("Header ended before declared size")
@@ -35,6 +37,7 @@ def decode_header(header_bytes: bytes | None) -> dict:
     
 
 def read_message(sock: socket) -> tuple:
+    "read one full message received from the socket"
     header_size_bytes = recv_exact(sock, HEADER_LENGTH_BYTES)
     if header_size_bytes is None:
         return None, None
@@ -62,6 +65,7 @@ def read_message(sock: socket) -> tuple:
 
 
 def send_message(sock: socket, message_header: dict, payload: bytes = b"") -> None:
+    "send one full message through the socket"
     message_header["size"] = len(payload)
     
     # turn the header to a proper JSON format
@@ -74,6 +78,7 @@ def send_message(sock: socket, message_header: dict, payload: bytes = b"") -> No
 
 
 def ack(message: str, client_id: str  = None, metadata: dict  = None, content_type: str  = None) -> dict:
+    "construct a single ACK response header with relevant parameters"
     response = {"action": "ACK",  "status": "ok", "message": message, "size": 0}
     if client_id is not None:
         response["client_id"] = client_id
@@ -85,13 +90,14 @@ def ack(message: str, client_id: str  = None, metadata: dict  = None, content_ty
 
 
 def ack_with_payload(message: str, document: dict) -> tuple:
+    "construct a single ACK response header with json payload"
     response, _ = ack(message, content_type="application/json")
     payload = json.dumps(document, separators=(",", ":")).encode("utf-8")
     return response, payload
     
 
 def error(code: str, message: str) -> dict:
-    """Build an ERROR response header."""
+    "construct a single ERROR response header"
     return {
         "action": "ERROR",
         "code": code,

@@ -10,29 +10,35 @@ from server.file_utils import write_file, build_file_metadata, storage_path
 
 
 class Server:
+    def __init__(self) -> None:
+        self.lock = threading.RLock()
+        self.metadata: dict = {"files": dict(), "deleted": dict(), "clients": list()}
+        self.init_metadata()
+    
+    def init_metadata(self) -> None:
+        "initialize self.metadata or METADATA_FILE only one is needed to align them"
+        with self.lock:
+            if not METADATA_FILE.exists():
+                # will write the default metadata to the file so they will be aligned
+                METADATA_FILE.parent.mkdir(parents=True, exist_ok=True)
+                self.save_metadata()
+            else:
+                # update self.metadata from the file so they will be aligned
+                self.update_metadata()
+        
     def update_metadata(self) -> None:
+        "load the latest metadata from METADATA_FILE"
         with self.lock:
             with open(METADATA_FILE, "r", encoding="utf-8") as f:
                 self.metadata = json.load(f)
 
     def save_metadata(self) -> None:
+        "saves the latest metadata to METADATA_FILE"
         with open(METADATA_FILE, "w", encoding="utf-8") as f:
             json.dump(self.metadata, f, indent=2, sort_keys=True)
 
-    def init_metadata(self) -> None:
-        with self.lock:
-            if not METADATA_FILE.exists():
-                METADATA_FILE.parent.mkdir(parents=True, exist_ok=True)
-                self.save_metadata()
-            else:
-                self.update_metadata()
-
-    def __init__(self) -> None:
-        self.lock = threading.RLock()
-        self.metadata: dict = {"files": dict(), "deleted": dict(), "clients": list()}
-        self.init_metadata()
-
     def add_new_client(self, client_id: str) -> None:
+        "add a new client id to the metadata file"
         with self.lock:
             self.update_metadata()
             if client_id not in self.metadata["clients"]:
@@ -40,9 +46,11 @@ class Server:
                 self.save_metadata()
 
     def filter_deleted_files_not_seen_by_client(self, client_id: str) -> dict:
+        "returns all the deleted files that the given client has not yet seen"
         return {k: v for k, v in self.metadata["deleted"].items() if client_id not in v["seen_by"]}
 
     def snapshot_for_client(self, client_id: str) -> dict:
+        "return existing files + deleted files the given client has not yet seen"
         with self.lock:
             self.update_metadata()
             return {
@@ -51,6 +59,7 @@ class Server:
             }
 
     def get_previous_record(self, filename: str) -> dict:
+        "get the last known record for a file"
         file_data = self.metadata["files"].get(filename)
         if file_data:
             return file_data
@@ -58,6 +67,7 @@ class Server:
             return self.metadata["deleted"].get(filename, {})
 
     def validate_write_version(self, request: dict, previous: dict, file_exists: bool) -> None:
+        "validate if an upload or update is allowed then accept or reject"
         if request.get("action") == "UPLOAD":
             if file_exists:
                 log.error(f"stale upload rejected: {request.get('filename')}")
@@ -71,6 +81,7 @@ class Server:
             raise PermissionError("server already has a newer copy")
 
     def save_file(self, request: dict, payload: bytes) -> dict:
+        "save new uplaoded file and update the metadata and deletion if needed"
         filename = request.get("filename")
         client_id = request.get("client_id")
         mtime = request.get("mtime")
@@ -91,6 +102,7 @@ class Server:
             return file_metadata
 
     def read_file(self, filename: str) -> dict:
+        "read a file and return his content as binary and metadata"
         with self.lock:
             metadata = self.metadata["files"].get(filename, None)
             if metadata is None:
@@ -102,6 +114,7 @@ class Server:
             return {"metadata": metadata, "payload": payload}
 
     def delete_file(self, request: dict) -> dict:
+        "delete a file, delete his metadata and add to the deleted files list"
         filename = request.get("filename")
         client_id = request.get("client_id")
         with self.lock:
@@ -132,6 +145,7 @@ class Server:
             return self.metadata["deleted"][filename]
 
     def update_deletion_seen_by_client(self, client_id: str, filenames: list[str]) -> None:
+        "if all clients saw a deletion - remove the file from the deleted list"
         with self.lock:
             for filename in filenames:
                 deleted_file_data = self.metadata["deleted"].get(filename, None)
@@ -154,6 +168,7 @@ class Server:
             self.save_metadata()
 
 def send_bad_request(sock: socket, message: str, address: tuple) -> None:
+    "send ERROR_BAD_REQUEST to client"
     try:
         send_message(sock, error(ERROR_BAD_REQUEST, message))
         log.sent("BAD_REQUEST", "unknown", address[0])
@@ -163,6 +178,7 @@ def send_bad_request(sock: socket, message: str, address: tuple) -> None:
 
 
 def client_handler(sock: socket, address: tuple, server: Server) -> None:
+    "handle a connection to a single client"
     log.info(f"client connected from {address[0]}")
     with sock:
         while True:

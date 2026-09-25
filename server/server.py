@@ -5,8 +5,8 @@ from server.constants import HOST, PORT, BACKLOG, STORAGE_DIR
 from socket import socket, AF_INET, SOCK_STREAM, SOL_SOCKET, SO_REUSEADDR
 
 
-# Create and return a new server socket
 def create_new_server_socket() -> socket:
+    "create and return a new server socket"
     sock = socket(AF_INET, SOCK_STREAM)
     sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
     sock.bind((HOST, PORT))
@@ -15,8 +15,8 @@ def create_new_server_socket() -> socket:
     return sock
 
 
-# wait for new clients and allow them to connect to the server
 def wait_and_accept_new_clients(sock: socket, server: Server) -> None:
+    "wait for new clients and allow them to connect to the server"
     while True:
         client_socket, client_address = sock.accept()
         log.info(f"accepted connection from {client_address}")
@@ -28,8 +28,9 @@ def wait_and_accept_new_clients(sock: socket, server: Server) -> None:
         thread.start()
         log.info(f"started a thread for client {client_address}")
 
-# Start the server
-def start_server() -> None:   
+
+def start_server() -> None: 
+    "start the server handler and socket" 
     log.info("Server started")
     STORAGE_DIR.mkdir(parents=True, exist_ok=True)
     server = Server()
@@ -38,8 +39,9 @@ def start_server() -> None:
     with create_new_server_socket() as sock:
         wait_and_accept_new_clients(sock, server)
 
-# Run the server
+
 def main() -> None:
+    "entrypoint for the server program"
     try:
       start_server()
     except KeyboardInterrupt:
