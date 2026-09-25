@@ -1,14 +1,7 @@
 from server.constants import *
 from log import log
 from server.protocol import ack, ack_with_payload, error
-from server.validation import (
-    validate_client_id,
-    validate_empty_payload,
-    validate_filename,
-    validate_file_message,
-    validate_filenames_list,
-    validate_version,
-)
+from server.validation import *
     
     
 def handle_connect(server, request: dict, payload: bytes = b"") -> tuple[dict, bytes]:

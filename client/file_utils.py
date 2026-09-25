@@ -1,9 +1,6 @@
-"""Client-side PyDrop file hashing, metadata, and path helpers."""
-
 from hashlib import sha256
 import os
 from pathlib import Path
-
 from client.constants import BUFFER_SIZE, SYNC_FOLDER
 from client.validation import validate_filename
 
