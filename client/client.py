@@ -20,9 +20,9 @@ class Client:
         self.last_update_check = 0.0
         self.folder = Folder(self.folder_name)
         self.snapshot = self.folder.export()
-        self.load_state()
         
-        state_file = self.folder_name / STATE_FILE_NAME
+        self.state_file = self.folder_name / STATE_FILE_NAME
+        self.load_state()
 
     def load_state(self) -> None:
         path = self.state_file

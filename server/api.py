@@ -67,7 +67,7 @@ def handle_download(server, request: dict, payload: bytes = b"") -> tuple[dict, 
 
 
 def handle_delete(server, request: dict, payload: bytes = b"") -> tuple[dict, bytes]:
-"validate then aknowledge or reject a request to delete a file"
+    "validate then aknowledge or reject a request to delete a file"
     val_err = validate_client_id(request)
     if val_err:
         return val_err, b""
