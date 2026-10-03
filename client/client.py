@@ -12,9 +12,10 @@ from client.protocol import read_message, send_message
 from client.validation import validate_client_id, validate_filename
 
 class Client:
-    def __init__(self, client_id: str, folder_name: Path = SYNC_FOLDER) -> None:
+    def __init__(self, client_id: str, folder_name: Path = SYNC_FOLDER, bind_ip: str | None = None) -> None:
         validate_client_id(client_id)
         self.client_id = client_id
+        self.bind_ip = bind_ip
         self.folder_name = folder_name
         self.server_versions = {}
         self.last_update_check = 0.0
@@ -350,10 +351,11 @@ def run_connected_loop(sock: socket, client: Client) -> None:
 
 def sync_with_server(client: Client) -> None:
     log.info(f"watching folder {client.folder}")
+    source_address = (client.bind_ip, 0) if client.bind_ip is not None else None
     while True:
         try:
             log.info(f"connecting to {HOST}:{PORT}")
-            with create_connection((HOST, PORT)) as sock:
+            with create_connection((HOST, PORT), source_address=source_address) as sock:
                 send_connect(sock, client)
                 initial_reconcile(sock, client)
                 run_connected_loop(sock, client)
@@ -365,11 +367,12 @@ def sync_with_server(client: Client) -> None:
 def main() -> None:
     parser = ArgumentParser(description="Run a PyDrop client")
     parser.add_argument("--client_id")
+    parser.add_argument("--bind_ip", help="Local source IP address (default: chosen by the OS)")
     parser.add_argument("--sync_folder", default=SYNC_FOLDER, type=Path)
     args = parser.parse_args()
 
     try:
-        sync_with_server(Client(args.client_id, args.sync_folder))
+        sync_with_server(Client(args.client_id, args.sync_folder, bind_ip=args.bind_ip))
     except KeyboardInterrupt:
         log.info("stopped by user")
 

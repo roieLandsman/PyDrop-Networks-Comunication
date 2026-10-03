@@ -1,7 +1,6 @@
 from pathlib import Path
 
-# Docker clients reach the server by network alias; local clients use localhost.
-HOST = "pydrop-server" if Path("/.dockerenv").exists() else "127.0.0.1"
+HOST = "127.20.0.0"
 PORT = 5001
 BUFFER_SIZE = 4096
 HEADER_LENGTH_BYTES = 4

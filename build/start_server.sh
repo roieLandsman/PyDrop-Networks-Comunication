@@ -2,19 +2,15 @@
 set -eu
 
 IMAGE_NAME="pydrop-server"
-CONTAINER_NAME="pydrop-server-$(date +%Y%m%d%H%M%S)"
-NETWORK_NAME="pydrop-net"
+CONTAINER_NAME="pydrop-server"
 PORT="5001"
 
 docker build -f build/Dockerfile.server -t "$IMAGE_NAME" .
-docker network inspect "$NETWORK_NAME" >/dev/null 2>&1 || docker network create "$NETWORK_NAME" >/dev/null
 
-echo "Starting $CONTAINER_NAME on Docker network port $PORT. Press Ctrl+C to stop."
+echo "Starting $CONTAINER_NAME on 127.20.0.0:$PORT with host networking. Press Ctrl+C to stop."
 exec docker run --rm \
   --name "$CONTAINER_NAME" \
-  --network "$NETWORK_NAME" \
-  --network-alias pydrop-server \
+  --network host \
   --label pydrop.role=server \
-  -e PYDROP_BIND_HOST=0.0.0.0 \
   -e PYDROP_PORT="$PORT" \
   "$IMAGE_NAME"

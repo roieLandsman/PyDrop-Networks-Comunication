@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 
-HOST = os.environ.get("PYDROP_BIND_HOST", "127.0.0.1")
+HOST = "127.20.0.0"
 PORT = int(os.environ.get("PYDROP_PORT", "5001"))
 BACKLOG = 5
 BUFFER_SIZE = 4096
