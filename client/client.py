@@ -79,10 +79,14 @@ class Client:
         self.snapshot[filename] = metadata
         self.remember_version(filename, version)
 
-    def remember_synced_delete(self, filename: str, version: int) -> None:
+    def remember_synced_delete(self, filename: str, version: int | None) -> None:
         self.folder.delete_file(filename)
         self.snapshot.pop(filename, None)
-        self.remember_version(filename, version)
+        if version is None:
+            self.server_versions.pop(filename, None)
+        else:
+            self.server_versions[filename] = int(version)
+        self.save_state()
 
     def apply_download(self, filename: str, payload: bytes, metadata: dict) -> None:
         write_file(filename, payload, self.folder_name, metadata.get("mtime"))
@@ -239,6 +243,15 @@ def send_delete(sock: socket, client: Client, filename: str) -> None:
     try:
         header = requests.delete(client.client_id, filename, version)
         response = request_response(sock, header)
+        response_header, _ = response
+        if (
+            response_header.get("action") == "ERROR"
+            and response_header.get("code") == "FILE_NOT_FOUND"
+        ):
+            # A repeated delete is complete even if its earlier ACK was lost.
+            client.remember_synced_delete(filename, None)
+            log.info(f"delete already complete on server: {filename}")
+            return
         response_header, _ = ensure_ack(response)
     except RuntimeError as error:
         if not str(error).startswith("STALE_VERSION"):
