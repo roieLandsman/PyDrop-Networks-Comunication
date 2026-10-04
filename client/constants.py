@@ -1,6 +1,6 @@
 from pathlib import Path
 
-HOST = "127.20.0.0"
+HOST = "127.127.0.0"
 PORT = 5001
 BUFFER_SIZE = 4096
 HEADER_LENGTH_BYTES = 4

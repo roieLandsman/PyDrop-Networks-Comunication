@@ -51,7 +51,7 @@ if [ -n "$HOST_PATH" ]; then
 fi
 
 CLIENT_ID="client${CLIENT_NUM}"
-CLIENT_IP="127.20.0.${CLIENT_NUM}"
+CLIENT_IP="127.127.0.${CLIENT_NUM}"
 IMAGE_NAME="pydrop-client"
 CONTAINER_NAME="pydrop-client-${CLIENT_NUM}"
 
@@ -66,7 +66,7 @@ fi
 
 docker build -f build/Dockerfile.client -t "$IMAGE_NAME" .
 
-echo "Starting $CONTAINER_NAME as $CLIENT_ID from $CLIENT_IP, connecting to 127.20.0.0:5001."
+echo "Starting $CONTAINER_NAME as $CLIENT_ID from $CLIENT_IP, connecting to 127.127.0.0:5001."
 echo "Open the sync folder with: build/open_client_sync.sh --id $CLIENT_NUM"
 exec docker run --rm -it \
   --name "$CONTAINER_NAME" \
