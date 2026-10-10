@@ -13,6 +13,7 @@ from client.validation import validate_client_id, validate_filename
 
 class Client:
     def __init__(self, client_id: str, folder_name: Path = SYNC_FOLDER, bind_ip: str | None = None) -> None:
+        "initialize the client manager and start tracking of the sync folder"
         validate_client_id(client_id)
         self.client_id = client_id
         self.bind_ip = bind_ip
@@ -26,6 +27,7 @@ class Client:
         self.load_state()
 
     def load_state(self) -> None:
+        "load existing state fiel is exist or create an empty one"
         path = self.state_file
         if not path.exists():
             return
@@ -41,29 +43,35 @@ class Client:
             log.error(f"could not load client state: {error}")
 
     def save_state(self) -> None:
+        "save the current state snepshot to the state file"
         file_data = {"snapshot": self.snapshot, "server_versions": self.server_versions}
         with open(self.state_file, "w", encoding="utf-8") as f:
             json.dump(file_data, f, indent=4, sort_keys=True)
 
     def refresh_snapshot(self) -> dict:
+        " rescan the folder and return the delta fron the previous snapshot"
         self.folder.refresh()
         return self.folder.get_diff(self.snapshot)
 
     def has_local_edit(self, filename: str) -> bool:
+        "check if a file is new or updated"
         self.folder.refresh()
         metadata = self.folder.get_single_file_metadata(filename)
         known_metadata = self.snapshot.get(filename)
-        if metadata is None:
+        if metadata is None: # does not exist in the folder - deleted
             return False
-        if known_metadata is None:
+        if known_metadata is None: # exist in the folder, not in the previous snapshot - new
             return True
+        # true for changed file - false if there is no change
         return metadata.get("hash") != known_metadata.get("hash")
 
     def has_current_file(self, filename: str) -> bool:
+        "check if filename is an existing file"
         self.folder.refresh()
         return self.folder.get_single_file_metadata(filename) is not None
 
     def has_local_remote_conflict(self, filename: str, metadata: dict) -> bool:
+        "check if there is a hash difference with the remote file"
         self.folder.refresh()
         local_metadata = self.folder.get_single_file_metadata(filename)
         if local_metadata is None:
@@ -71,15 +79,18 @@ class Client:
         return local_metadata.get("hash") != metadata.get("hash")
 
     def remember_version(self, filename: str, version: int) -> None:
+        "save the files new version"
         self.server_versions[filename] = int(version)
         self.save_state()
 
     def remember_synced_file(self, filename: str, metadata: dict, version: int) -> None:
+        "save the files new metadata"
         self.folder.update_single_file_metadata(filename, metadata)
         self.snapshot[filename] = metadata
         self.remember_version(filename, version)
 
     def remember_synced_delete(self, filename: str, version: int | None) -> None:
+        "remove a deleted file from the trackes metadata objects"
         self.folder.delete_file(filename)
         self.snapshot.pop(filename, None)
         if version is None:
@@ -89,6 +100,7 @@ class Client:
         self.save_state()
 
     def apply_download(self, filename: str, payload: bytes, metadata: dict) -> None:
+        "write a file received from the fodler, and save its metadata"
         write_file(filename, payload, self.folder_name, metadata.get("mtime"))
         self.folder.refresh()
         self.snapshot = self.folder.export()
@@ -96,6 +108,7 @@ class Client:
         self.save_state()
 
     def apply_delete(self, filename: str) -> None:
+        "delete a file from the fodler, and save its metadata"
         delete_file(filename, self.folder_name)
         self.folder.refresh()
         self.snapshot = self.folder.export()
@@ -103,6 +116,7 @@ class Client:
         self.save_state()
 
     def preserve_local_copy(self, filename: str) -> None:
+        "create a .local copy of a file wit ha conflict fwit hthe server"
         rename_to_local(filename, self.folder_name)
         self.folder.refresh()
         self.snapshot = self.folder.export()
@@ -111,6 +125,7 @@ class Client:
 
 
 def request_response(sock: socket, header: dict, payload: bytes = b"") -> tuple:
+    "send a request and read teh responce"
     send_message(sock, header, payload)
     server_address = f"{HOST}:{PORT}"
     client_id = header.get("client_id", "unknown")
@@ -125,6 +140,7 @@ def request_response(sock: socket, header: dict, payload: bytes = b"") -> tuple:
 
 
 def ensure_ack(response: tuple) -> tuple:
+    "make sure the response receives is ACK"
     header, payload = response
     if header.get("action") == "ERROR":
         log.error(f"server returned error: {header.get('code')}: {header.get('message')}")
@@ -136,25 +152,27 @@ def ensure_ack(response: tuple) -> tuple:
 
 
 def send_connect(sock: socket, client: Client) -> None:
+    "send connection request and make sure an ACK is received"
     ensure_ack(request_response(sock, requests.connect(client.client_id)))
     log.info(f"connected as {client.client_id}")
 
 
 def fetch_server_snapshot(sock: socket, client: Client) -> dict:
-    header, payload = ensure_ack(
-        request_response(sock, requests.check_updates(client.client_id))
-    )
+    "request the current state of the server files"
+    header, payload = ensure_ack(request_response(sock, requests.check_updates(client.client_id)))
     client.last_update_check = time.monotonic()
     return responses.snapshot(header, payload)
 
 
 def has_unseen_server_version(client: Client, filename: str, metadata: dict) -> bool:
+    "check if teh version of a file in the server is higher then the clients"
     server_version = int(metadata.get("version", 0))
     local_version = client.server_versions.get(filename, 0)
     return server_version > local_version
 
 
 def has_delete_conflict(client: Client, filename: str, metadata: dict) -> bool:
+    "check if a remote deletion if in conflict with a local edit"
     if not has_unseen_server_version(client, filename, metadata):
         return False
     if client.has_local_edit(filename):
@@ -163,6 +181,7 @@ def has_delete_conflict(client: Client, filename: str, metadata: dict) -> bool:
 
 
 def download_one_file(sock: socket, client: Client, filename: str) -> None:
+    "download the content of a single file"
     response = request_response(sock, requests.download(client.client_id, filename))
     header, payload = ensure_ack(response)
     metadata = header.get("metadata", {})
@@ -174,6 +193,7 @@ def download_one_file(sock: socket, client: Client, filename: str) -> None:
 
 
 def has_upload_conflict(sock: socket, client: Client, filename: str) -> bool:
+    "check for conflicts before uploading a file to server"
     snapshot = fetch_server_snapshot(sock, client)
     metadata = snapshot["files"].get(filename)
     deleted_metadata = snapshot["deleted"].get(filename)
@@ -196,6 +216,7 @@ def has_upload_conflict(sock: socket, client: Client, filename: str) -> bool:
 
 
 def build_file_request(client: Client, action: str, metadata: dict) -> dict:
+    "return an UPLOAD or UPDATE to send the server"
     if action == "UPLOAD":
         return requests.upload(
             client.client_id,
@@ -216,6 +237,7 @@ def build_file_request(client: Client, action: str, metadata: dict) -> dict:
 
 
 def send_file_change(sock: socket, client: Client, action: str, filename: str) -> None:
+    "check for conflicts and if there is none use build_file_request() to send a file to the server"
     metadata = client.folder.get_single_file_metadata(filename)
     if metadata is None:
         return
@@ -239,6 +261,7 @@ def send_file_change(sock: socket, client: Client, action: str, filename: str) -
 
 
 def send_delete(sock: socket, client: Client, filename: str) -> None:
+    "update the serevr that a deletion has occured"
     version = client.server_versions.get(filename, 0)
     try:
         header = requests.delete(client.client_id, filename, version)
@@ -265,6 +288,7 @@ def send_delete(sock: socket, client: Client, filename: str) -> None:
 
 
 def send_local_changes(sock: socket, client: Client) -> None:
+    "if tehre are local changes send the relevant info to the server"
     changes = client.refresh_snapshot()
     for filename in changes["added"]:
         send_file_change(sock, client, "UPLOAD", filename)
@@ -274,11 +298,8 @@ def send_local_changes(sock: socket, client: Client) -> None:
         send_delete(sock, client, filename)
 
 
-def should_check_updates(client: Client) -> bool:
-    return time.monotonic() - client.last_update_check >= UPDATE_INTERVAL_SECONDS
-
-
 def upload_local_only_files(sock: socket, client: Client, remote_files: dict) -> None:
+    "send the server a fiel that does not exist in the server files data"
     local_names = sorted(client.snapshot)
     for filename in local_names:
         if filename not in remote_files:
@@ -286,6 +307,7 @@ def upload_local_only_files(sock: socket, client: Client, remote_files: dict) ->
 
 
 def preserve_download_conflict(client: Client, filename: str, metadata: dict) -> None:
+    "preserve a .local file if there if a conflict when downloading a file"
     if not has_unseen_server_version(client, filename, metadata):
         return
     is_fresh_conflict = filename not in client.server_versions
@@ -297,6 +319,7 @@ def preserve_download_conflict(client: Client, filename: str, metadata: dict) ->
 
 
 def is_current_file(client: Client, filename: str, metadata: dict) -> bool:
+    "decide if a download can be skipped - when the correct version exist locally"
     version = int(metadata.get("version", 0))
     local_metadata = client.snapshot.get(filename)
     if local_metadata is None:
@@ -308,6 +331,7 @@ def is_current_file(client: Client, filename: str, metadata: dict) -> bool:
 
 
 def download_changed_files(sock: socket, client: Client, files: dict) -> None:
+    "manage the full download process of files that needs to be downloaded"
     for filename, metadata in sorted(files.items()):
         try:
             validate_filename(filename)
@@ -321,6 +345,7 @@ def download_changed_files(sock: socket, client: Client, files: dict) -> None:
 
 
 def mark_remote_deletions(sock: socket, client: Client, deleted: dict) -> None:
+    "manage the full deletion process of files that needs to be deleted"
     filenames = []
     for filename, metadata in sorted(deleted.items()):
         try:
@@ -342,6 +367,7 @@ def mark_remote_deletions(sock: socket, client: Client, deleted: dict) -> None:
 
 
 def check_remote_updates(sock: socket, client: Client) -> dict:
+    "ask the server for its snapshot then manage deletions"
     snapshot = fetch_server_snapshot(sock, client)
     download_changed_files(sock, client, snapshot["files"])
     mark_remote_deletions(sock, client, snapshot["deleted"])
@@ -349,20 +375,22 @@ def check_remote_updates(sock: socket, client: Client) -> dict:
 
 
 def initial_reconcile(sock: socket, client: Client) -> None:
+    "do the first alignment of the local fodler with the state of the server"
     send_local_changes(sock, client)
     snapshot = check_remote_updates(sock, client)
     upload_local_only_files(sock, client, snapshot["files"])
 
 
 def run_connected_loop(sock: socket, client: Client) -> None:
+    "sleep for SCAN_INTERVAL_SECONDS then align the local fodlder with the remote" 
     while True:
         send_local_changes(sock, client)
-        if should_check_updates(client):
-            check_remote_updates(sock, client)
+        check_remote_updates(sock, client)
         time.sleep(SCAN_INTERVAL_SECONDS)
 
 
 def sync_with_server(client: Client) -> None:
+    "syncronize the local folder with teh server as long as the connection ifs alive"
     log.info(f"watching folder {client.folder}")
     source_address = (client.bind_ip, 0) if client.bind_ip is not None else None
     while True:
@@ -378,6 +406,7 @@ def sync_with_server(client: Client) -> None:
 
 
 def main() -> None:
+    "entrypoint to the clisnt code"
     parser = ArgumentParser(description="Run a PyDrop client")
     parser.add_argument("--client_id")
     parser.add_argument("--bind_ip", help="Local source IP address (default: chosen by the OS)")

@@ -2,6 +2,7 @@ import json
 from log import log
 
 def payload_json(header: dict, payload: bytes) -> dict:
+    "parse a payload of type bytes to a readable json. raise errors when needed"
     if header.get("content_type") != "application/json":
         log.error("response error: payload is not JSON")
         raise RuntimeError("response payload is not JSON")
@@ -17,6 +18,7 @@ def payload_json(header: dict, payload: bytes) -> dict:
 
 
 def snapshot(header: dict, payload: bytes | None) -> dict:
+    "extracts the relevant data from a json payload for the client to check folder changes"
     document = payload_json(header, payload) if payload else header
     return {
         "files": document.get("files", {}),

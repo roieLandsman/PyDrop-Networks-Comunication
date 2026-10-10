@@ -6,6 +6,7 @@ from log import log
 
 
 def recv_exact(sock: socket.socket, byte_count: int) -> bytes | None:
+    "read byte_count number of bytes from the socket"
     chunks = []
     remaining = byte_count
     while remaining > 0:
@@ -18,6 +19,7 @@ def recv_exact(sock: socket.socket, byte_count: int) -> bytes | None:
 
 
 def decode_header(header_bytes: bytes | None) -> dict:
+    "decode the header of a message and return it as a json"
     if header_bytes is None:
         log.error("protocol error: header ended before declared size")
         raise ValueError("Header ended before declared size")
@@ -33,6 +35,7 @@ def decode_header(header_bytes: bytes | None) -> dict:
 
 
 def read_message(sock: socket.socket) -> tuple | None:
+    "read the header and the payload. retern the header as json and the payload as bytes"
     header_size_bytes = recv_exact(sock, HEADER_LENGTH_BYTES)
     if header_size_bytes is None:
         return None
@@ -57,6 +60,7 @@ def read_message(sock: socket.socket) -> tuple | None:
 
 
 def send_message(sock: socket.socket, header: dict, payload: bytes = b"") -> None:
+    "send a message to the server, with a header and optional payload" 
     message_header = dict(header)
     message_header["size"] = len(payload)
     header_bytes = json.dumps(message_header, separators=(",", ":")).encode("utf-8")

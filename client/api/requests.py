@@ -4,6 +4,7 @@ from client.validation import validate_version
 
 
 def connect(client_id: str) -> dict:
+    "creates a CONNECT api request"
     validate_client_id(client_id)
     return {
         "action": "CONNECT",
@@ -12,13 +13,8 @@ def connect(client_id: str) -> dict:
     }
 
 
-def upload(
-    client_id: str,
-    filename: str,
-    size: int,
-    mtime: float,
-    file_hash: str,
-) -> dict:
+def upload(client_id: str, filename: str, size: int, mtime: float, file_hash: str) -> dict:
+    "creates a UPLOAD api request"
     validate_client_id(client_id)
     validate_filename(filename)
     validate_file_values(size, mtime, file_hash)
@@ -32,14 +28,8 @@ def upload(
     }
 
 
-def update(
-    client_id: str,
-    filename: str,
-    size: int,
-    mtime: float,
-    file_hash: str,
-    version: int | None = None,
-) -> dict:
+def update(client_id: str, filename: str, size: int, mtime: float, file_hash: str, version: int | None = None) -> dict:
+    "creates a UPDATE api request"
     validate_client_id(client_id)
     validate_filename(filename)
     validate_file_values(size, mtime, file_hash)
@@ -58,6 +48,7 @@ def update(
 
 
 def download(client_id: str, filename: str) -> dict:
+    "creates a DOWNLOAD api request"
     validate_client_id(client_id)
     validate_filename(filename)
     return {
@@ -69,6 +60,7 @@ def download(client_id: str, filename: str) -> dict:
 
 
 def delete(client_id: str, filename: str, version: int | None = None) -> dict:
+    "creates a DELETE api request"
     validate_client_id(client_id)
     validate_filename(filename)
     validate_version(version)
@@ -84,6 +76,7 @@ def delete(client_id: str, filename: str, version: int | None = None) -> dict:
 
 
 def delete_seen(client_id: str, filenames: list[str]) -> dict:
+    "creates a DELETE_SEEN api request"
     validate_client_id(client_id)
     validate_filenames_list(filenames)
     return {
@@ -95,6 +88,7 @@ def delete_seen(client_id: str, filenames: list[str]) -> dict:
 
 
 def check_updates(client_id: str) -> dict:
+    "creates a CHECK_UPDATES api request"
     validate_client_id(client_id)
     return {
         "action": "CHECK_UPDATES",

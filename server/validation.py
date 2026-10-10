@@ -82,7 +82,7 @@ def validate_version(version: int | None) -> dict | None:
 
 
 def validate_filenames_list(request: dict) -> dict | None:
-    "validated off fiels in the request"
+    "validate a list of files using validate_filename"
     filenames = request.get("filenames")
     if not isinstance(filenames, list):
         log.error("validation failed: filenames must be a list")
